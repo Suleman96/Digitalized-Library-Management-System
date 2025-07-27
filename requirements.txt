@@ -1,0 +1,7 @@
+pandas
+requests
+llama-index-llms-ollama
+fpdf
+gradio
+faiss-cpu
+sentence-transformers
