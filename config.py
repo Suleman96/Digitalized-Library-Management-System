@@ -7,7 +7,6 @@ Centralized configuration for:
 - UI option lists
 - language mappings
 """
-
 import os
 
 # File paths
