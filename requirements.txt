@@ -1,4 +1,3 @@
-gutenberg
 pandas
 requests
 gutenbergpy
