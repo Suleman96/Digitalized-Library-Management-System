@@ -116,7 +116,6 @@ Text data from book titles and descriptions undergoes several preprocessing step
   - Memory-efficient storage of vector representations
   - Scalable to millions of book entries
 
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
