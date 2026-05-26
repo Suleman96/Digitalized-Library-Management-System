@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Iqra Digital Library — System Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --primary:    #2B5CE6;
+    --primary-lt: #EEF2FF;
+    --accent:     #F59E0B;
+    --success:    #22C55E;
+    --danger:     #EF4444;
+    --purple:     #7C3AED;
+    --surface-0:  #F8FAFC;
+    --surface-1:  #FFFFFF;
+    --border:     #E2E8F0;
+    --text:       #0F172A;
+    --muted:      #64748B;
+    --radius:     10px;
+    --shadow:     0 4px 24px rgba(0,0,0,.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--surface-0);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 15px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  .site-header {
+    background: linear-gradient(135deg, #1E2433 0%, #2B3555 100%);
+    padding: 2rem 2.5rem;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+  .header-inner { max-width: 1100px; margin: auto; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+  .header-title h1 { color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em; }
+  .header-title p  { color: rgba(255,255,255,.55); font-size: .88rem; margin-top: .2rem; }
+
+  /* ── Version switcher ───────────────────────────────────────── */
+  .version-bar {
+    background: var(--surface-1);
+    border-bottom: 2px solid var(--border);
+    position: sticky; top: 90px; z-index: 99;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  }
+  .version-inner { max-width: 1100px; margin: auto; display: flex; align-items: center; gap: 0; padding: 0 2rem; }
+  .ver-tab {
+    padding: .75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 600; font-size: .92rem;
+    color: var(--muted);
+    border: none; background: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all .18s;
+  }
+  .ver-tab:hover { color: var(--primary); }
+  .ver-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .ver-badge {
+    display: inline-block;
+    font-size: .72rem; font-weight: 700;
+    padding: .15rem .4rem; border-radius: 4px; margin-left: .4rem;
+  }
+  .badge-v2 { background: var(--primary); color: #fff; }
+  .badge-v1 { background: var(--muted); color: #fff; }
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  .doc-wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 2rem 5rem; }
+
+  .version-section { display: none; }
+  .version-section.active { display: block; }
+
+  /* ── TOC ────────────────────────────────────────────────────── */
+  .toc {
+    background: var(--primary-lt);
+    border: 1px solid #C7D2FE;
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .toc h3 { font-size: .88rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .65rem; }
+  .toc ol { padding-left: 1.2rem; }
+  .toc li { margin: .22rem 0; }
+  .toc a  { color: var(--primary); text-decoration: none; font-size: .9rem; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Sections ───────────────────────────────────────────────── */
+  .section { margin-bottom: 3.5rem; }
+  .section-anchor { display: block; position: relative; top: -130px; visibility: hidden; }
+
+  h2 {
+    font-size: 1.4rem; font-weight: 700;
+    color: var(--text);
+    padding-bottom: .6rem;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 1.2rem;
+  }
+  h2 .sec-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    font-size: .8rem; font-weight: 700;
+    margin-right: .6rem;
+  }
+
+  h3 {
+    font-size: 1.05rem; font-weight: 700;
+    color: var(--text);
+    margin: 1.8rem 0 .7rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  h3 .file-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .82rem; font-weight: 500;
+    background: #1E293B; color: #94A3B8;
+    padding: .18rem .55rem; border-radius: 5px;
+  }
+
+  h4 { font-size: .95rem; font-weight: 600; color: var(--muted); margin: 1.2rem 0 .5rem; }
+
+  p { margin-bottom: .9rem; color: var(--text); }
+
+  /* ── Info box ───────────────────────────────────────────────── */
+  .info-box {
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: 1rem 0 1.2rem;
+    font-size: .91rem;
+    line-height: 1.55;
+    display: flex; gap: .75rem; align-items: flex-start;
+  }
+  .info-box .icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .05rem; }
+  .info-blue   { background: var(--primary-lt); border: 1px solid #C7D2FE; }
+  .info-green  { background: #DCFCE7; border: 1px solid #86EFAC; }
+  .info-amber  { background: #FFF8E7; border: 1px solid #FCD34D; }
+  .info-purple { background: #F3E8FF; border: 1px solid #C4B5FD; }
+
+  /* ── Code ───────────────────────────────────────────────────── */
+  pre {
+    background: #0F172A;
+    color: #94A3B8;
+    border-radius: var(--radius);
+    padding: 1.25rem 1.4rem;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .82rem;
+    line-height: 1.65;
+    margin: 1rem 0 1.2rem;
+    border: 1px solid #1E293B;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .85em;
+    background: #1E293B;
+    color: #94A3B8;
+    padding: .15em .4em;
+    border-radius: 4px;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; border-radius: 0; }
+
+  .kw  { color: #93C5FD; }  /* keywords, imports */
+  .fn  { color: #6EE7B7; }  /* function names */
+  .st  { color: #FCD34D; }  /* strings */
+  .cm  { color: #475569; }  /* comments */
+  .nu  { color: #F9A8D4; }  /* numbers */
+
+  /* ── Tables ─────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); margin: 1rem 0 1.5rem; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface-1); font-size: .9rem; }
+  thead th {
+    background: var(--primary); color: #fff;
+    text-align: left; padding: .65rem 1rem;
+    font-weight: 600; white-space: nowrap;
+  }
+  tbody td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--primary-lt); }
+
+  /* ── Diagram ─────────────────────────────────────────────────── */
+  .diagram {
+    background: #0F172A;
+    color: #CBD5E1;
+    border-radius: var(--radius);
+    padding: 1.5rem 1.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 1rem 0 1.5rem;
+    border: 1px solid #1E293B;
+  }
+  .diagram .d-box  { color: #60A5FA; }
+  .diagram .d-pipe { color: #475569; }
+  .diagram .d-hi   { color: #6EE7B7; }
+  .diagram .d-warn { color: #FCD34D; }
+
+  /* ── Stage cards ─────────────────────────────────────────────── */
+  .stages { display: flex; flex-direction: column; gap: 0; margin: 1rem 0 1.5rem; }
+  .stage {
+    display: flex; gap: 1rem; align-items: stretch;
+  }
+  .stage-connector {
+    display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0;
+  }
+  .stage-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--primary); border: 2px solid var(--surface-1);
+    box-shadow: 0 0 0 2px var(--primary);
+    flex-shrink: 0; margin-top: 1.05rem;
+  }
+  .stage-line { width: 2px; background: var(--border); flex: 1; }
+  .stage-body {
+    flex: 1; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .85rem 1.1rem; margin-bottom: .85rem;
+    box-shadow: var(--shadow);
+  }
+  .stage-label {
+    font-size: .75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--primary); margin-bottom: .25rem;
+  }
+  .stage-body p { margin: 0; font-size: .9rem; }
+
+  /* ── File list ───────────────────────────────────────────────── */
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: .75rem; margin: 1rem 0 1.5rem;
+  }
+  .file-card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .9rem 1.1rem;
+    box-shadow: var(--shadow);
+  }
+  .file-card .fc-name { font-family: 'JetBrains Mono', monospace; font-size: .82rem; color: var(--primary); font-weight: 600; margin-bottom: .3rem; }
+  .file-card .fc-badge { font-size: .72rem; font-weight: 700; padding: .12rem .38rem; border-radius: 4px; margin-left: .3rem; vertical-align: middle; }
+  .fc-new  { background: #DCFCE7; color: #166534; }
+  .fc-mod  { background: #FFF8E7; color: #92400E; }
+  .fc-same { background: var(--border); color: var(--muted); }
+  .file-card p { font-size: .82rem; color: var(--muted); margin: 0; }
+
+  /* ── Checklist ───────────────────────────────────────────────── */
+  .checklist { list-style: none; padding: 0; margin: .75rem 0 1.2rem; }
+  .checklist li { display: flex; gap: .6rem; align-items: flex-start; padding: .35rem 0; font-size: .91rem; }
+  .checklist li::before { content: '☐'; color: var(--primary); font-size: 1rem; flex-shrink: 0; }
+  .checklist li.done::before { content: '✅'; }
+
+  /* ── Deprecated banner ───────────────────────────────────────── */
+  .deprecated-banner {
+    background: #FEF3C7; border: 2px solid var(--accent);
+    border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 2rem;
+    font-size: .91rem; font-weight: 500; display: flex; gap: .7rem; align-items: center;
+  }
+
+  /* ── Glossary ────────────────────────────────────────────────── */
+  .gloss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: .75rem; margin: 1rem 0; }
+  .gloss-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem 1rem; }
+  .gloss-card dt { font-weight: 700; color: var(--primary); margin-bottom: .2rem; font-size: .92rem; }
+  .gloss-card dd { font-size: .86rem; color: var(--muted); }
+
+  /* ── Footer ─────────────────────────────────────────────────── */
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: .82rem; border-top: 1px solid var(--border); }
+  footer a { color: var(--primary); text-decoration: none; }
+
+  @media (max-width: 700px) {
+    .site-header { padding: 1.25rem 1rem; position: relative; }
+    .version-bar { position: relative; top: 0; }
+    .doc-wrap { padding: 1.25rem 1rem 3rem; }
+    .file-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Section ribbons ─────────────────────────────────────────── */
+  .section-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+    margin-bottom: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .section-ribbon::before {
+    content: '';
+    position: absolute;
+    right: -20px; top: -20px;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+  }
+  .ribbon-num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: rgba(255,255,255,.35);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+    flex-shrink: 0;
+    min-width: 2.5rem;
+  }
+  .ribbon-info { flex: 1; }
+  .ribbon-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .ribbon-tag {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    background: rgba(255,255,255,.2);
+    color: rgba(255,255,255,.9);
+    padding: .25rem .65rem;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .ribbon-blue   { background: linear-gradient(135deg, #2B5CE6 0%, #1E3A8A 100%); }
+  .ribbon-green  { background: linear-gradient(135deg, #16A34A 0%, #065F46 100%); }
+  .ribbon-purple { background: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%); }
+  .ribbon-amber  { background: linear-gradient(135deg, #D97706 0%, #92400E 100%); }
+  .ribbon-slate  { background: linear-gradient(135deg, #475569 0%, #1E293B 100%); }
+
+  .section-body {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 2.5rem;
+  }
+  /* Replace old .section margin since section-body handles it now */
+  .section { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>📚 Iqra Digital Library — System Architecture</h1>
+      <p>DiploTech Solutions &nbsp;·&nbsp; Complete technical reference for developers and stakeholders</p>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════ PAGE NAV -->
+<nav style="background:#1E2433;border-bottom:1px solid #334155;padding:.55rem 2rem;">
+  <div style="max-width:1100px;margin:auto;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;">
+    <span style="color:#94A3B8;font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Docs:</span>
+    <a href="system-architecture.html" style="color:#60A5FA;font-size:.88rem;font-weight:600;text-decoration:none;" class="active">📐 Architecture</a>
+    <a href="design-decisions.html"    style="color:#94A3B8;font-size:.88rem;font-weight:500;text-decoration:none;">🧠 Design Decisions</a>
+    <a href="business-impact.html" style="color:#94A3B8;font-size:.88rem;font-weight:500;text-decoration:none;">📈 Business Impact</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════ VERSION TABS -->
+<div class="version-bar">
+  <div class="version-inner">
+    <button class="ver-tab" id="tab-v1" onclick="switchVersion('v1')">
+      Version 1 <span class="ver-badge badge-v1">v1</span>
+    </button>
+    <button class="ver-tab active" id="tab-v2" onclick="switchVersion('v2')">
+      Version 2 <span class="ver-badge badge-v2">v2 — Current</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ MAIN -->
+<div class="doc-wrap">
+
+<!-- ═══════════ VERSION 1 ═══════════ -->
+<div id="sec-v1" class="version-section">
+
+  <div class="deprecated-banner">
+    ⚠️ <strong>This is the v1 architecture — for reference only.</strong>
+    The app currently runs v2. Switch to the v2 tab for the current system.
+  </div>
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#v1-overview">Overview</a></li>
+      <li><a href="#v1-files">Files</a></li>
+      <li><a href="#v1-search">Search: FAISS Only</a></li>
+      <li><a href="#v1-data-flow">Data Flow</a></li>
+      <li><a href="#v1-limitations">Limitations that drove v2</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. Overview -->
+  <div class="section">
+    <span class="section-anchor" id="v1-overview"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">01</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Overview</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <p>
+      Version 1 was a straightforward Gradio application that searched a local book CSV using FAISS
+      semantic similarity and the Google Books API. There was no AI integration, no conversational
+      assistant, and no reading list.
+    </p>
+    <div class="info-box info-amber">
+      <span class="icon">📅</span>
+      <div>v1 was the initial prototype. It proved the concept — semantic book search works well —
+      but lacked the intelligence and features needed for a polished library experience.</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Component</th><th>v1 Approach</th></tr></thead>
+        <tbody>
+          <tr><td>Book search</td><td>FAISS semantic search only (cosine similarity)</td></tr>
+          <tr><td>External books</td><td>Google Books API</td></tr>
+          <tr><td>AI / LLM</td><td>None</td></tr>
+          <tr><td>Conversational agent</td><td>None</td></tr>
+          <tr><td>Reading list</td><td>None</td></tr>
+          <tr><td>Analytics</td><td>None</td></tr>
+          <tr><td>PDF export</td><td>None</td></tr>
+          <tr><td>Query enhancement</td><td>None — raw query only</td></tr>
+          <tr><td>CI/CD</td><td>None</td></tr>
+          <tr><td>Test coverage</td><td>Minimal</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 2. Files -->
+  <div class="section">
+    <span class="section-anchor" id="v1-files"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">02</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Files</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <div class="file-grid">
+      <div class="file-card">
+        <div class="fc-name">config.py <span class="fc-badge fc-same">unchanged</span></div>
+        <p>Frozen dataclass holding all paths and settings.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">manager.py <span class="fc-badge fc-same">v1</span></div>
+        <p>CSV catalogue + FAISS index builder. Had a bug where <code>add_book</code> reloaded from disk before saving the new row.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">recommender.py <span class="fc-badge fc-same">v1</span></div>
+        <p>FAISS cosine similarity search + Google Books API. No BM25, no hybrid fusion.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">app.py <span class="fc-badge fc-same">v1</span></div>
+        <p>Basic 2-tab Gradio UI: Search and Add Book. No AI panel, no analytics.</p>
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 3. Search -->
+  <div class="section">
+    <span class="section-anchor" id="v1-search"></span>
+    <div class="section-ribbon ribbon-purple">
+      <div class="ribbon-num">03</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Search: FAISS Only</div>
+      </div>
+      <div class="ribbon-tag">Search</div>
+    </div>
+    <div class="section-body">
+    <p>
+      v1 used a single-strategy search: embed the query with <code>all-MiniLM-L6-v2</code>, then
+      find the nearest vectors in the FAISS index by inner product (equivalent to cosine similarity
+      on L2-normalised vectors).
+    </p>
+    <pre><code><span class="cm"># v1 search — raw FAISS only</span>
+q_vec = model.encode([query])
+distances, indices = index.search(q_vec, k)
+results = [metadata[i] for i in indices[0]]</code></pre>
+    <div class="info-box info-amber">
+      <span class="icon">⚠️</span>
+      <div><strong>Problem:</strong> A search for "Christie murder mysteries" would find semantically
+      similar books but miss exact keyword matches like an author named "Christie" — FAISS alone
+      doesn't understand proper nouns as reliably as keyword search.</div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 4. Data Flow -->
+  <div class="section">
+    <span class="section-anchor" id="v1-data-flow"></span>
+    <div class="section-ribbon ribbon-amber">
+      <div class="ribbon-num">04</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Data Flow</div>
+      </div>
+      <div class="ribbon-tag">Data Layer</div>
+    </div>
+    <div class="section-body">
+    <pre class="diagram">
+<span class="d-box">User query</span>
+    │
+    ▼
+<span class="d-box">SentenceTransformer embed (384-dim)</span>
+    │
+    ├── <span class="d-box">FAISS search</span> → local books
+    └── <span class="d-box">Google Books API</span> → external books
+    │
+    ▼
+<span class="d-box">Sort by rating / similarity</span>
+    │
+    ▼
+<span class="d-box">HTML card rendering → Gradio UI</span></pre>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 5. Limitations -->
+  <div class="section">
+    <span class="section-anchor" id="v1-limitations"></span>
+    <div class="section-ribbon ribbon-slate">
+      <div class="ribbon-num">05</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Limitations That Drove v2</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Limitation</th><th>v2 Solution</th></tr></thead>
+        <tbody>
+          <tr><td>FAISS misses exact keyword matches</td><td>BM25 + FAISS hybrid fusion (40/60)</td></tr>
+          <tr><td>No intelligence — raw query only</td><td>AI query expansion, HyDE, multi-query</td></tr>
+          <tr><td>No re-ranking — similarity score is final</td><td>Cross-encoder re-ranking as optional pass</td></tr>
+          <tr><td>No conversation memory</td><td>LangGraph ReAct agent with MemorySaver</td></tr>
+          <tr><td><code>add_book</code> silently lost data</td><td>Fixed: in-memory DataFrame operations before disk write</td></tr>
+          <tr><td>No reading list</td><td>JSON-backed bookmarks with PDF export</td></tr>
+          <tr><td>No analytics</td><td>Rating histogram, category chart, year trend</td></tr>
+          <tr><td>No tests</td><td>81 pytest tests, GitHub Actions CI/CD</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+</div><!-- /v1 -->
+
+
+<!-- ═══════════ VERSION 2 ═══════════ -->
+<div id="sec-v2" class="version-section active">
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#v2-overview">What's New in v2</a></li>
+      <li><a href="#v2-big-picture">System Architecture Diagram</a></li>
+      <li><a href="#v2-rag">RAG Pipeline — How It Works</a></li>
+      <li><a href="#v2-files">File-by-File Breakdown</a></li>
+      <li><a href="#v2-dataflow">End-to-End Data Flow</a></li>
+      <li><a href="#v2-embedding">Embedding Model</a></li>
+      <li><a href="#v2-security">Security</a></li>
+      <li><a href="#v2-perf">Performance</a></li>
+      <li><a href="#v2-testing">Testing Strategy</a></li>
+      <li><a href="#v2-deploy">Deployment Checklist</a></li>
+      <li><a href="#v2-extend">How to Extend</a></li>
+      <li><a href="#v2-glossary">Glossary</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. What's New -->
+  <div class="section">
+    <span class="section-anchor" id="v2-overview"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">01</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">What's New in v2</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>v1</th><th>v2</th></tr></thead>
+        <tbody>
+          <tr><td>Book search</td><td>FAISS semantic only</td><td><strong>Hybrid: BM25 (40%) + FAISS (60%), min-max normalised</strong></td></tr>
+          <tr><td>Pre-retrieval enhancement</td><td>None</td><td><strong>Query expansion + HyDE + Multi-query (3 variants)</strong></td></tr>
+          <tr><td>Post-retrieval re-ranking</td><td>None</td><td><strong>Cross-encoder (ms-marco-MiniLM) optional second pass</strong></td></tr>
+          <tr><td>Multi-query fusion</td><td>None</td><td><strong>Reciprocal Rank Fusion (RRF) across query variants</strong></td></tr>
+          <tr><td>AI integration</td><td>None</td><td><strong>Claude / OpenAI / Gemini / Ollama — user's choice</strong></td></tr>
+          <tr><td>Conversational assistant</td><td>None</td><td><strong>LangGraph ReAct agent with 5 tools + per-session memory</strong></td></tr>
+          <tr><td>Reading list</td><td>None</td><td><strong>JSON-backed bookmarks with PDF export</strong></td></tr>
+          <tr><td>Analytics</td><td>None</td><td><strong>Rating histogram, category chart, year trend</strong></td></tr>
+          <tr><td>PDF export</td><td>None</td><td><strong>fpdf2-powered export of results or reading list</strong></td></tr>
+          <tr><td>CI/CD</td><td>None</td><td><strong>GitHub Actions pytest on every push</strong></td></tr>
+          <tr><td>Test coverage</td><td>~0%</td><td><strong>81 tests across 5 test files</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>New files in v2</h3>
+    <div class="file-grid">
+      <div class="file-card">
+        <div class="fc-name">rag_pipeline.py <span class="fc-badge fc-new">new</span></div>
+        <p>Advanced RAG orchestrator: HyDE, multi-query with RRF, cross-encoder re-ranking.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">hybrid_retriever.py <span class="fc-badge fc-new">new</span></div>
+        <p>Custom BM25 + FAISS fusion. No LangChain dependency — uses rank_bm25 directly.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">llm_provider.py <span class="fc-badge fc-new">new</span></div>
+        <p>Multi-provider LLM abstraction. Claude, OpenAI, Gemini, Ollama under one interface.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">agent.py <span class="fc-badge fc-new">new</span></div>
+        <p>LangGraph ReAct agent with 5 tools and per-session conversation memory.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">reading_list.py <span class="fc-badge fc-new">new</span></div>
+        <p>JSON-backed bookmarks at <code>data/reading_list.json</code>.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">exporter.py <span class="fc-badge fc-new">new</span></div>
+        <p>fpdf2 PDF export with latin-1 safe encoding for non-ASCII titles.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">app.py <span class="fc-badge fc-mod">rewritten</span></div>
+        <p>Full 7-tab Gradio UI with AI settings, chat, analytics, reading list, advanced RAG toggles.</p>
+      </div>
+      <div class="file-card">
+        <div class="fc-name">.github/workflows/tests.yml <span class="fc-badge fc-new">new</span></div>
+        <p>GitHub Actions CI: pytest on every push to main.</p>
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 2. Architecture Diagram -->
+  <div class="section">
+    <span class="section-anchor" id="v2-big-picture"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">02</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">System Architecture Diagram</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <pre class="diagram">
+<span class="d-box">┌──────────────────────────────────────────────────────────────────────┐</span>
+<span class="d-box">│  USER BROWSER                                                        │</span>
+<span class="d-box">└──────────────────────────┬───────────────────────────────────────────┘</span>
+                           │  HTTP (localhost:7860)
+                           ▼
+<span class="d-box">┌──────────────────────────────────────────────────────────────────────┐</span>
+<span class="d-box">│  GRADIO APPLICATION  (app.py)                                        │</span>
+<span class="d-box">│                                                                      │</span>
+<span class="d-box">│  ┌──────────┐  ┌─────────────┐  ┌──────────┐  ┌────────────────┐   │</span>
+<span class="d-box">│  │🔎Recommend│  │🤖AI Librarian│  │📊Analytics│  │📌Reading List  │   │</span>
+<span class="d-box">│  └────┬─────┘  └──────┬──────┘  └────┬─────┘  └───────┬────────┘   │</span>
+<span class="d-box">│       │               │              │                 │            │</span>
+<span class="d-box">│  ┌────▼───────────────▼──────────────▼─────────────────▼────────┐   │</span>
+<span class="d-box">│  │  AI Settings Panel (provider / model / advanced RAG toggles) │   │</span>
+<span class="d-box">│  └───────────────────────────────────────────────────────────────┘   │</span>
+<span class="d-box">└──┬──────────┬──────────────────┬──────────────────┬──────────────────┘</span>
+   │          │                  │                  │
+   ▼          ▼                  ▼                  ▼
+<span class="d-hi">┌──────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐</span>
+<span class="d-hi">│RAGPipeline│  │ LibraryAgent │  │ BookRecommend│  │  ReadingList  │</span>
+<span class="d-hi">│ Hyde      │  │ (LangGraph   │  │  (FAISS +    │  │  (JSON file)  │</span>
+<span class="d-hi">│ MultiQuery│  │  ReAct)      │  │  Google API) │  └───────────────┘</span>
+<span class="d-hi">│ Reranking │  └──────┬───────┘  └──────┬───────┘</span>
+<span class="d-hi">└────┬──────┘         │                 │</span>
+     │                │                 │
+     ▼                ▼                 ▼
+<span class="d-hi">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="d-hi">│  HybridRetriever  (BM25 40% + FAISS 60%, min-max normalised)    │</span>
+<span class="d-hi">└─────────────────────────────────────────────────────────────────┘</span>
+     │
+     ▼
+<span class="d-box">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="d-box">│  DATA LAYER                                                     │</span>
+<span class="d-box">│  books.csv ── book_index.faiss ── books_metadata.pkl            │</span>
+<span class="d-box">│  reading_list.json ── artifacts/ (exported PDFs)               │</span>
+<span class="d-box">└──────────────────────────────┬──────────────────────────────────┘</span>
+                              │
+                              ▼
+<span class="d-box">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="d-box">│  EXTERNAL SERVICES                                              │</span>
+<span class="d-box">│  Google Books API  ──  Claude / OpenAI / Gemini / Ollama        │</span>
+<span class="d-box">└─────────────────────────────────────────────────────────────────┘</span></pre>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 3. RAG Pipeline -->
+  <div class="section">
+    <span class="section-anchor" id="v2-rag"></span>
+    <div class="section-ribbon ribbon-purple">
+      <div class="ribbon-num">03</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">RAG Pipeline — How It Works</div>
+      </div>
+      <div class="ribbon-tag">AI Pipeline</div>
+    </div>
+    <div class="section-body">
+    <div class="info-box info-blue">
+      <span class="icon">💡</span>
+      <div>
+        <strong>RAG = Retrieve → Augment → Generate.</strong>
+        Instead of asking an AI to answer from memory, we first retrieve relevant books, then hand
+        them to the AI as context. In Iqra v2, RAG has three optional enhancement stages that make
+        retrieval dramatically more accurate.
+      </div>
+    </div>
+
+    <h3>Stage 0 — Baseline: Hybrid Search</h3>
+    <p>Every search goes through the <code>HybridRetriever</code> regardless of AI settings:</p>
+    <pre><code><span class="cm"># hybrid_retriever.py — always active</span>
+bm25_scores   = bm25.get_scores(query.lower().split())      <span class="cm"># keyword match</span>
+faiss_scores  = faiss_index.search(embed(query), k=pool)   <span class="cm"># semantic match</span>
+combined      = 0.40 * minmax(bm25) + 0.60 * minmax(faiss) <span class="cm"># weighted fusion</span></code></pre>
+
+    <h3>Advanced RAG via <code>rag_pipeline.py</code> (optional, requires AI)</h3>
+
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-connector"><div class="stage-dot" style="background:#7C3AED"></div><div class="stage-line"></div></div>
+        <div class="stage-body">
+          <div class="stage-label">Pre-retrieval · Stage A — HyDE</div>
+          <p><strong>Hypothetical Document Embeddings:</strong> The LLM generates a fake 2-sentence ideal book description for the query. That synthetic text is embedded and searched in FAISS — producing richer semantic results than embedding the raw query, because the hypothetical doc "looks like" a book in the index.</p>
+          <pre style="margin-top:.75rem"><code>prompt = <span class="st">"Write a 2-sentence description of an ideal book for: '{query}'"</span>
+hypo_doc = llm.generate_hypothetical_doc(query)
+hyde_results = retriever.search(hypo_doc, k=fetch_k)</code></pre>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-connector"><div class="stage-dot" style="background:#2B5CE6"></div><div class="stage-line"></div></div>
+        <div class="stage-body">
+          <div class="stage-label">Pre-retrieval · Stage B — Multi-Query</div>
+          <p><strong>Query Variants + RRF:</strong> The LLM generates 3 alternative phrasings of the query. Each variant runs through the full hybrid retriever. Results from all N+1 searches are merged using <strong>Reciprocal Rank Fusion</strong> — books appearing in multiple result lists get boosted, catching books that any single query might miss.</p>
+          <pre style="margin-top:.75rem"><code>variants = llm.generate_query_variants(query)  <span class="cm"># 3 alternatives</span>
+all_results = [retriever.search(q, k) <span class="kw">for</span> q <span class="kw">in</span> [query] + variants]
+merged = rrf_merge(all_results)  <span class="cm"># 1/(rank + 60) scoring</span></code></pre>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-connector"><div class="stage-dot" style="background:#22C55E"></div></div>
+        <div class="stage-body">
+          <div class="stage-label">Post-retrieval · Stage C — Cross-Encoder Re-ranking</div>
+          <p><strong>Second-Pass Precision:</strong> After retrieval, every <code>(query, title + description)</code> pair is scored by a cross-encoder model (<code>ms-marco-MiniLM-L-6-v2</code>). Unlike bi-encoders that embed query and doc separately, a cross-encoder sees both together — dramatically improving relevance precision at the cost of speed. Results are re-ordered by the cross-encoder score.</p>
+          <pre style="margin-top:.75rem"><code>pairs = [(query, f<span class="st">"{r['title']} {r['description'][:300]}"</span>) <span class="kw">for</span> r <span class="kw">in</span> results]
+ce_scores = cross_encoder.predict(pairs)
+results = sorted(zip(ce_scores, results), reverse=<span class="kw">True</span>)</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box info-green">
+      <span class="icon">✅</span>
+      <div>All three stages are <strong>independently toggleable</strong> and <strong>gracefully degraded</strong>:
+      if the LLM is off or the cross-encoder can't load, the pipeline falls back to plain hybrid search
+      without raising an exception.</div>
+    </div>
+
+    <h3>Comparison: RAG strategies</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Strategy</th><th>When it helps most</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Hybrid (always on)</strong></td><td>All queries — baseline improvement over FAISS-only</td><td>Negligible (+1ms)</td></tr>
+          <tr><td><strong>Query Expansion</strong></td><td>Vague queries ("something motivating")</td><td>1 LLM call (~0.5s)</td></tr>
+          <tr><td><strong>HyDE</strong></td><td>Abstract/thematic queries ("a book about resilience")</td><td>1 LLM call + 1 FAISS search</td></tr>
+          <tr><td><strong>Multi-Query</strong></td><td>Ambiguous phrasing ("hacking stories")</td><td>1 LLM call + 3 FAISS searches + RRF</td></tr>
+          <tr><td><strong>Cross-Encoder Re-rank</strong></td><td>When top-k precision matters more than recall</td><td>Cross-encoder inference (~200ms on CPU)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 4. Files -->
+  <div class="section">
+    <span class="section-anchor" id="v2-files"></span>
+    <div class="section-ribbon ribbon-amber">
+      <div class="ribbon-num">04</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">File-by-File Breakdown</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <h3><span class="file-tag">config.py</span> — Settings Hub</h3>
+    <p>A frozen <code>@dataclass</code> holding every path, API key source, and option list.
+    All other modules import from here — a single source of truth.</p>
+    <div class="info-box info-amber">
+      <span class="icon">🔒</span>
+      <div><strong>Frozen dataclass</strong> raises <code>FrozenInstanceError</code> if any code tries to mutate a
+      setting at runtime. Tests must replace the entire module-level <code>settings</code> reference using
+      <code>patch("module.settings", SimpleNamespace(...))</code> — <code>setattr</code> won't work.</div>
+    </div>
+    <pre><code><span class="kw">@dataclass</span>(frozen=<span class="kw">True</span>)
+<span class="kw">class</span> <span class="fn">Settings</span>:
+    <span class="fn">base_dir</span>: Path = Path(<span class="st">"."</span>)
+
+    <span class="kw">@property</span>
+    <span class="kw">def</span> <span class="fn">google_api_key</span>(<span class="kw">self</span>) -> str:
+        <span class="cm"># Priority 1: env var → 2: .env file → 3: API.txt</span>
+        ...</code></pre>
+
+    <h3><span class="file-tag">manager.py</span> — Catalogue Manager</h3>
+    <p>Owns the local book collection: CSV on disk, FAISS index in memory, metadata pickle.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Storage format</th><th>Purpose</th><th>Who reads it</th></tr></thead>
+        <tbody>
+          <tr><td><code>books.csv</code></td><td>Human-readable source of truth</td><td>pandas, admins</td></tr>
+          <tr><td><code>book_index.faiss</code></td><td>Fast vector search</td><td>FAISS, HybridRetriever</td></tr>
+          <tr><td><code>books_metadata.pkl</code></td><td>Metadata parallel to FAISS rows</td><td>recommender, RAGPipeline</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-box info-green">
+      <span class="icon">🐛</span>
+      <div><strong>v1 bug fixed:</strong> The old <code>add_book</code> called <code>_load_or_build()</code>
+      which reloaded the CSV from disk <em>before</em> the new row was saved — silently discarding additions.
+      v2 operates on the in-memory DataFrame and only persists at the end.</div>
+    </div>
+
+    <h3><span class="file-tag">recommender.py</span> — Search Engine</h3>
+    <p>Semantic search over the FAISS index + Google Books API, with result normalisation and HTML rendering.</p>
+    <p>Every piece of text from outside (CSV data, API responses) is passed through <code>html.escape()</code>
+    before HTML insertion — XSS prevention at the boundary.</p>
+
+    <h3><span class="file-tag">hybrid_retriever.py</span> — BM25 + FAISS Fusion</h3>
+    <div class="info-box info-purple">
+      <span class="icon">⚙️</span>
+      <div><strong>No LangChain dependency.</strong> LangChain 1.3.1 removed <code>EnsembleRetriever</code>
+      from both <code>langchain</code> and <code>langchain-community</code>. The hybrid retriever is
+      implemented directly with <code>rank_bm25</code> and raw <code>faiss</code> — zero framework dependency.</div>
+    </div>
+    <pre><code><span class="cm"># Scoring formula (per document):</span>
+combined = <span class="nu">0.40</span> * minmax(bm25_scores) + <span class="nu">0.60</span> * minmax(faiss_scores)
+
+<span class="cm"># Why min-max normalise?</span>
+<span class="cm"># BM25 scores are unbounded (0 → ∞). FAISS cosine scores are in [-1, 1].</span>
+<span class="cm"># Without normalisation, BM25 scale would dominate regardless of weight.</span></code></pre>
+
+    <h3><span class="file-tag">rag_pipeline.py</span> — Advanced RAG Orchestrator <span class="fc-badge fc-new" style="vertical-align:middle">new</span></h3>
+    <p>Wraps <code>HybridRetriever</code> with the three optional passes described in §3.
+    Each pass degrades gracefully on failure.</p>
+    <pre><code><span class="kw">class</span> <span class="fn">RAGPipeline</span>:
+    <span class="kw">def</span> <span class="fn">search</span>(<span class="kw">self</span>, query, k=<span class="nu">10</span>, *, use_hyde=<span class="kw">False</span>,
+                use_multi_query=<span class="kw">False</span>, use_rerank=<span class="kw">False</span>) -> list[dict]:
+        <span class="cm"># Stage 1: build query set (HyDE + multi-query)</span>
+        <span class="cm"># Stage 2: retrieve + RRF merge</span>
+        <span class="cm"># Stage 3: cross-encoder re-rank</span>
+        ...</code></pre>
+
+    <h3><span class="file-tag">llm_provider.py</span> — AI Provider Abstraction</h3>
+    <p>A singleton <code>LLMProvider</code> that connects to any of four backends under one interface.
+    Never raises — all failures return empty strings and log warnings.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>configure(provider, model)</code></td><td>Authenticates and tests the connection</td></tr>
+          <tr><td><code>expand_query(query)</code></td><td>Rewrites query with synonyms (basic RAG pre-processing)</td></tr>
+          <tr><td><code>generate_hypothetical_doc(query)</code></td><td>HyDE: generates a fake ideal book description</td></tr>
+          <tr><td><code>generate_query_variants(query)</code></td><td>Multi-query: generates 3 alternative phrasings</td></tr>
+          <tr><td><code>explain_match(query, book)</code></td><td>2-sentence explanation of why a book matches</td></tr>
+          <tr><td><code>get_langchain_llm()</code></td><td>Returns a LangChain chat model for the agent</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3><span class="file-tag">agent.py</span> — Conversational Library Agent</h3>
+    <p>A LangGraph ReAct agent that reasons in a loop: <em>Think → Use a tool → Observe result → repeat.</em>
+    Per-session memory via <code>MemorySaver</code>, keyed by UUID <code>thread_id</code>.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>search_local_library</code></td><td>Hybrid BM25+FAISS search of the local collection</td></tr>
+          <tr><td><code>search_google_books</code></td><td>Live Google Books API search</td></tr>
+          <tr><td><code>find_similar_books</code></td><td>Semantic similarity by title</td></tr>
+          <tr><td><code>save_to_reading_list</code></td><td>Bookmarks a book by title</td></tr>
+          <tr><td><code>filter_by_rating</code></td><td>Instructs the agent to prefer higher-rated results</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3><span class="file-tag">reading_list.py</span> — Bookmarks</h3>
+    <p>Personal reading list stored as <code>data/reading_list.json</code> (git-ignored).
+    JSON was chosen over CSV because it's simpler for atomic single-object writes and keeps personal
+    data separate from the catalogue.</p>
+
+    <h3><span class="file-tag">exporter.py</span> — PDF Generation</h3>
+    <p>Pure-Python PDF export via <code>fpdf2</code>. Uses <code>_safe_str()</code> to encode all text
+    as latin-1 with <code>errors='replace'</code> — handles Arabic, CJK, and emoji titles without crashing
+    the built-in Helvetica font.</p>
+
+    <h3><span class="file-tag">app.py</span> — Gradio Application</h3>
+    <p>7-tab UI wiring all components together. Startup sequence:</p>
+    <pre><code>manager          = DynamicBookManager()    <span class="cm"># loads CSV, builds FAISS</span>
+reco             = BookRecommender()       <span class="cm"># loads FAISS + embedding model</span>
+reading_list_mgr = ReadingList()           <span class="cm"># loads JSON</span>
+hybrid_ret       = HybridRetriever()
+hybrid_ret.build(embed_fn=reco._embed)    <span class="cm"># reuses reco's loaded model</span>
+rag_pipeline     = RAGPipeline(hybrid_ret, llm)
+agent_mgr        = LibraryAgent(...)       <span class="cm"># agent built only after Connect</span></code></pre>
+    <div class="info-box info-amber">
+      <span class="icon">♻️</span>
+      <div><code>hybrid_ret.build(embed_fn=reco._embed)</code> — the embed function is shared, not reloaded.
+      Loading <code>all-MiniLM-L6-v2</code> takes ~3s. Passing it in avoids loading it twice at startup.</div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 5. Data Flow -->
+  <div class="section">
+    <span class="section-anchor" id="v2-dataflow"></span>
+    <div class="section-ribbon ribbon-slate">
+      <div class="ribbon-num">05</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">End-to-End Data Flow</div>
+      </div>
+      <div class="ribbon-tag">Data Layer</div>
+    </div>
+    <div class="section-body">
+    <pre class="diagram">
+<span class="d-warn">User: "Egyptian mythology fiction"</span>
+    │
+    ├─── [AI on] llm.expand_query()
+    │          └── "Egyptian mythology fiction ancient gods fantasy novel"
+    │
+    ├─── [use_hyde]  llm.generate_hypothetical_doc()
+    │          └── "A fantasy novel where Ra and Osiris walk among modern Egyptians…"
+    │
+    ├─── [use_multi_query]  llm.generate_query_variants()
+    │          └── ["Egyptian gods fantasy", "Pharaoh mythology novel", "ancient Egypt fiction"]
+    │
+    ▼
+<span class="d-hi">HybridRetriever.search() × N queries</span>
+    │    ├─ BM25Okapi.get_scores()        (keyword overlap)
+    │    └─ faiss.search(embed(q), pool)  (semantic similarity)
+    │    └─ 0.40 × minmax(bm25) + 0.60 × minmax(faiss)
+    │
+    ├─── [multi-query] RRF merge across N result lists
+    │          └── score = Σ 1/(rank + 60) per title
+    │
+    ├─── [use_rerank] CrossEncoder.predict(query, title + desc)
+    │          └── Reorder by cross-encoder score
+    │
+    ▼
+<span class="d-box">reco.recommend() also runs (for external results):</span>
+    ├─ Google Books API  → up to 20 external books
+    └─ Sort by Rating / Similarity / Year
+    │
+    ▼
+<span class="d-box">reco.format_books() → HTML book cards</span>
+    │
+    ▼
+<span class="d-warn">UI: results HTML + dropdown + state updated simultaneously</span></pre>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 6. Embedding -->
+  <div class="section">
+    <span class="section-anchor" id="v2-embedding"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">06</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Embedding Model: all-MiniLM-L6-v2</div>
+      </div>
+      <div class="ribbon-tag">AI Pipeline</div>
+    </div>
+    <div class="section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Model size</td><td>22 MB (very lightweight)</td></tr>
+          <tr><td>Output dimensions</td><td>384 float32 per text</td></tr>
+          <tr><td>Training data</td><td>1 billion sentence pairs (distilled from larger models)</td></tr>
+          <tr><td>Speed (CPU)</td><td>~1,000 sentences/second</td></tr>
+          <tr><td>FAISS index type</td><td><code>IndexFlatIP</code> — exact inner product search</td></tr>
+          <tr><td>Normalisation</td><td>L2-normalised: inner product = cosine similarity</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <strong>Why L2-normalise?</strong> After normalisation, cosine similarity equals dot product.
+      <code>IndexFlatIP</code> computes dot products (inner products) — so the highest scores are
+      the semantically closest books. This is exact search: no approximation, no recall trade-off.
+      At 6,810 books it runs in &lt;10ms.
+    </p>
+    <p>
+      <strong>Cross-encoder model:</strong> <code>cross-encoder/ms-marco-MiniLM-L-6-v2</code> (~70MB)
+      is loaded lazily only when re-ranking is requested. It accepts <em>pairs</em> of texts rather
+      than individual embeddings, which is why it's more accurate but slower than bi-encoders.
+    </p>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 7. Security -->
+  <div class="section">
+    <span class="section-anchor" id="v2-security"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">07</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Security Considerations</div>
+      </div>
+      <div class="ribbon-tag">Security</div>
+    </div>
+    <div class="section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Risk</th><th>Mitigation</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>XSS from book data</td><td><code>html.escape()</code> on all external strings before HTML insertion</td><td>recommender.py, app.py, reading_list.py</td></tr>
+          <tr><td>API key leakage</td><td>Keys in <code>.env</code> (git-ignored); try/except wraps all access</td><td>.gitignore, llm_provider.py</td></tr>
+          <tr><td>ISBN injection into CSV</td><td>Character-by-character validation before write</td><td>app.py:_add_book()</td></tr>
+          <tr><td>Path traversal in PDF export</td><td>Output always written to <code>artifacts/</code> subdirectory</td><td>exporter.py</td></tr>
+          <tr><td>Prompt injection via book descriptions</td><td>Book data passed as tool output (not as instructions); system prompt is hardcoded</td><td>agent.py</td></tr>
+          <tr><td>SSRF via thumbnail URL</td><td>Only <code>http://</code> or <code>https://</code> URLs rendered; others replaced with empty</td><td>app.py, reading_list.py</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 8. Performance -->
+  <div class="section">
+    <span class="section-anchor" id="v2-perf"></span>
+    <div class="section-ribbon ribbon-purple">
+      <div class="ribbon-num">08</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Performance Characteristics</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <p>Measured on CPU (Ryzen 7 6800H), 6,810 books, all-MiniLM-L6-v2.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Operation</th><th>Time</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Cold startup</td><td>~15s</td><td>First run downloads model weights (~22MB)</td></tr>
+          <tr><td>Warm startup</td><td>~4s</td><td>Weights cached by sentence_transformers</td></tr>
+          <tr><td>FAISS index rebuild</td><td>~3s</td><td>Called after add/remove book</td></tr>
+          <tr><td>Hybrid retriever build</td><td>~2s</td><td>Reads existing FAISS; no re-embedding</td></tr>
+          <tr><td>Baseline hybrid search</td><td>&lt;50ms</td><td>BM25 + FAISS in-memory</td></tr>
+          <tr><td>+ HyDE</td><td>+0.5–3s</td><td>One extra LLM call + one FAISS search</td></tr>
+          <tr><td>+ Multi-query (3 variants)</td><td>+0.5–3s + 3×50ms</td><td>One LLM call + 3 extra FAISS searches + RRF</td></tr>
+          <tr><td>+ Cross-encoder re-rank</td><td>+150–400ms</td><td>First call also loads the 70MB model</td></tr>
+          <tr><td>Google Books API search</td><td>0.5–2s</td><td>Network latency dependent</td></tr>
+          <tr><td>PDF export (100 books)</td><td>&lt;1s</td><td>Pure Python, no rendering engine</td></tr>
+          <tr><td>AI explain match</td><td>0.5–3s</td><td>One LLM call per explanation</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-box info-green">
+      <span class="icon">🚀</span>
+      <div>On the RTX 3060 Laptop GPU (6GB VRAM), Ollama runs <code>llama3.2:3b</code> fully on GPU.
+      LLM calls drop from ~2s to &lt;0.5s, making all AI-enhanced features feel near-instant.</div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 9. Testing -->
+  <div class="section">
+    <span class="section-anchor" id="v2-testing"></span>
+    <div class="section-ribbon ribbon-amber">
+      <div class="ribbon-num">09</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Testing Strategy</div>
+      </div>
+      <div class="ribbon-tag">Testing</div>
+    </div>
+    <div class="section-body">
+    <pre><code>pytest tests/ -v --cov=. --cov-report=term-missing</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Test file</th><th>Tests</th><th>What it covers</th></tr></thead>
+        <tbody>
+          <tr><td><code>test_config.py</code></td><td>12</td><td>Settings paths, fallbacks, environment variables</td></tr>
+          <tr><td><code>test_manager.py</code></td><td>14</td><td>add_book, remove_book, CSV/FAISS lifecycle, rebuild</td></tr>
+          <tr><td><code>test_recommender.py</code></td><td>11</td><td>_normalise, _safe_float, _safe_int, _render_card, rating filter</td></tr>
+          <tr><td><code>test_hybrid_retriever.py</code></td><td>19</td><td>Build/reload/search, graceful degradation, BM25 normalisation</td></tr>
+          <tr><td><code>test_rag_pipeline.py</code></td><td>25</td><td>HyDE, multi-query, RRF merge, cross-encoder re-ranking, combined flags</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Key testing patterns:</strong></p>
+    <ul style="padding-left:1.3rem;color:var(--text);font-size:.91rem;line-height:1.8">
+      <li>Frozen dataclass settings replaced with <code>SimpleNamespace</code> and <code>patch("module.settings", fake)</code></li>
+      <li>Dummy embedder returns <code>np.ones((n, 384)) / sqrt(384)</code> — deterministic, no model load</li>
+      <li>Cross-encoder replaced with <code>MagicMock</code> — tests logic without 70MB model</li>
+      <li>Temp directories via <code>pytest.fixture(tmp_path)</code> — no production data touched</li>
+    </ul>
+    <p style="margin-top:1rem"><strong>GitHub Actions CI:</strong> Full suite runs on every push to <code>main</code>.
+    See <code>.github/workflows/tests.yml</code>.</p>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 10. Deployment -->
+  <div class="section">
+    <span class="section-anchor" id="v2-deploy"></span>
+    <div class="section-ribbon ribbon-slate">
+      <div class="ribbon-num">10</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Deployment Checklist</div>
+      </div>
+      <div class="ribbon-tag">Deployment</div>
+    </div>
+    <div class="section-body">
+    <ul class="checklist">
+      <li>Copy <code>.env.example</code> → <code>.env</code> and fill in <code>GOOGLE_API_KEY</code></li>
+      <li>(Optional) Add <code>ANTHROPIC_API_KEY</code> for Claude</li>
+      <li>Run <code>pip install -r requirements.txt</code></li>
+      <li>Run <code>python app.py</code> — creates <code>data/</code> and <code>artifacts/</code> automatically</li>
+      <li>For Ollama (local, free): install Ollama → <code>ollama pull llama3.2</code> → start app → connect in AI Settings</li>
+      <li>For public sharing: set <code>GRADIO_SHARE=true</code> in <code>.env</code></li>
+      <li>For production: set <code>SERVER_HOST=0.0.0.0</code> and <code>SERVER_PORT=7860</code></li>
+      <li>For GPU acceleration: install <code>faiss-gpu</code> instead of <code>faiss-cpu</code></li>
+    </ul>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 11. Extend -->
+  <div class="section">
+    <span class="section-anchor" id="v2-extend"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">11</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">How to Extend</div>
+      </div>
+      <div class="ribbon-tag">Extensibility</div>
+    </div>
+    <div class="section-body">
+    <h4>Add a new AI provider</h4>
+    <ol style="padding-left:1.3rem;font-size:.91rem;line-height:2">
+      <li>Add to <code>PROVIDER_MODELS</code> in <code>llm_provider.py</code></li>
+      <li>Add <code>_connect_&lt;provider&gt;()</code> method</li>
+      <li>Add <code>if self._provider == "..."</code> branch in <code>_call()</code></li>
+      <li>Add <code>get_langchain_llm()</code> branch for agent support</li>
+      <li>Add optional package to <code>requirements.txt</code></li>
+    </ol>
+
+    <h4>Add a new RAG stage</h4>
+    <ol style="padding-left:1.3rem;font-size:.91rem;line-height:2">
+      <li>Add method to <code>llm_provider.py</code> if LLM needed</li>
+      <li>Add <code>use_new_stage: bool = False</code> param to <code>RAGPipeline.search()</code></li>
+      <li>Implement inside the search method with try/except fallback</li>
+      <li>Add checkbox to <code>app.py</code> UI and wire to <code>_search_inputs</code></li>
+      <li>Add tests in <code>test_rag_pipeline.py</code></li>
+    </ol>
+
+    <h4>Scale beyond 6,810 books</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Scale</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td>&lt;100k books</td><td>Current setup works fine — no change needed</td></tr>
+          <tr><td>100k–1M books</td><td>Switch FAISS to <code>IndexIVFFlat</code> (approximate, faster)</td></tr>
+          <tr><td>&gt;1M books</td><td>Consider ChromaDB or Qdrant with persistent storage</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- 12. Glossary -->
+  <div class="section">
+    <span class="section-anchor" id="v2-glossary"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">12</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Glossary</div>
+      </div>
+      <div class="ribbon-tag">Infrastructure</div>
+    </div>
+    <div class="section-body">
+    <dl class="gloss-grid">
+      <div class="gloss-card"><dt>RAG</dt><dd>Retrieve relevant documents first, then ask the AI to answer using them as context — not from memory alone.</dd></div>
+      <div class="gloss-card"><dt>HyDE</dt><dd>Hypothetical Document Embeddings: the LLM generates a fake ideal answer; its embedding is used for retrieval instead of the raw query.</dd></div>
+      <div class="gloss-card"><dt>RRF</dt><dd>Reciprocal Rank Fusion: merges multiple ranked lists by scoring each doc as Σ 1/(rank + 60). Books appearing in multiple lists get boosted.</dd></div>
+      <div class="gloss-card"><dt>Cross-encoder</dt><dd>A model that scores a query–document pair jointly (sees both texts at once) — more accurate than bi-encoders but slower.</dd></div>
+      <div class="gloss-card"><dt>Bi-encoder</dt><dd>Encodes query and document separately, then compares embeddings. Fast but less precise than cross-encoders.</dd></div>
+      <div class="gloss-card"><dt>BM25</dt><dd>Best Match 25 — a classic keyword ranking algorithm used in Elasticsearch. Handles exact terms, proper nouns, and rare words well.</dd></div>
+      <div class="gloss-card"><dt>FAISS</dt><dd>Facebook AI Similarity Search — library for fast approximate and exact vector search.</dd></div>
+      <div class="gloss-card"><dt>IndexFlatIP</dt><dd>FAISS index type: exact inner product search. On L2-normalised vectors, inner product equals cosine similarity.</dd></div>
+      <div class="gloss-card"><dt>Embedding</dt><dd>Converting text into a fixed-size vector of numbers that captures its semantic meaning.</dd></div>
+      <div class="gloss-card"><dt>LangGraph</dt><dd>Framework for building stateful AI agents as directed graphs. Powers the ReAct conversational agent.</dd></div>
+      <div class="gloss-card"><dt>ReAct</dt><dd>Reason + Act: agent strategy where the model alternates between thinking and calling tools until it has enough information to respond.</dd></div>
+      <div class="gloss-card"><dt>MemorySaver</dt><dd>LangGraph component that stores conversation history in memory, keyed by thread_id (one per browser session).</dd></div>
+    </dl>
+    </div><!-- /section-body -->
+  </div>
+
+</div><!-- /v2 -->
+
+</div><!-- /doc-wrap -->
+
+<footer>
+  <p>Iqra Digital Library — Architecture Reference &nbsp;·&nbsp;
+  <a href="https://diplotech-solutions.com" target="_blank" rel="noopener">DiploTech Solutions</a>
+  &nbsp;·&nbsp; v1 archived &nbsp;·&nbsp; v2 current</p>
+</footer>
+
+<script>
+  function switchVersion(v) {
+    document.getElementById('sec-v1').classList.remove('active');
+    document.getElementById('sec-v2').classList.remove('active');
+    document.getElementById('tab-v1').classList.remove('active');
+    document.getElementById('tab-v2').classList.remove('active');
+    document.getElementById('sec-' + v).classList.add('active');
+    document.getElementById('tab-' + v).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Default: v2
+  document.addEventListener('DOMContentLoaded', () => switchVersion('v2'));
+</script>
+</body>
+</html>

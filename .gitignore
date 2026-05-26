@@ -1,0 +1,63 @@
+# =============================================================================
+# .gitignore — Iqra Digital Library
+# =============================================================================
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+pip-wheel-metadata/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+environment/
+ENV/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+API.txt
+
+# ── Generated artifacts (auto-rebuilt on startup) ─────────────────────────────
+artifacts/*.faiss
+artifacts/*.pkl
+artifacts/export_*.pdf
+!artifacts/.gitkeep
+
+# ── Reading list (personal data, not committed) ───────────────────────────────
+data/reading_list.json
+
+# ── OS / IDE ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.coverage
+
+# ── Build / dist ──────────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+
+# ── Gradio temp files ─────────────────────────────────────────────────────────
+gradio_cached_examples/
+flagged/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Claude AI (local dev assistant data — never commit) ───────────────────────
+.claude/

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Iqra Digital Library — Design Decisions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --primary:#2B5CE6; --primary-lt:#EEF2FF; --accent:#F59E0B;
+    --success:#22C55E; --danger:#EF4444; --purple:#7C3AED;
+    --surface-0:#F8FAFC; --surface-1:#FFFFFF;
+    --border:#E2E8F0; --text:#0F172A; --muted:#64748B;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--surface-0);color:var(--text);line-height:1.65;font-size:15px;}
+  .site-header{background:linear-gradient(135deg,#1E2433,#2B3555);padding:2rem 2.5rem;box-shadow:0 2px 12px rgba(0,0,0,.25);}
+  .header-inner{max-width:1100px;margin:auto;}
+  .header-title h1{color:#fff;font-size:1.4rem;font-weight:700;}
+  .header-title p{color:rgba(255,255,255,.55);font-size:.88rem;margin-top:.2rem;}
+  nav{background:#1E2433;border-bottom:1px solid #334155;padding:.55rem 2rem;}
+  .nav-inner{max-width:1100px;margin:auto;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;}
+  .nav-inner span{color:#94A3B8;font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+  .nav-inner a{font-size:.88rem;font-weight:500;text-decoration:none;}
+  .nav-inner a.active{color:#60A5FA;font-weight:600;}
+  .nav-inner a:not(.active){color:#94A3B8;}
+  .doc-wrap{max-width:1100px;margin:0 auto;padding:2.5rem 2rem 5rem;}
+  .toc{background:var(--primary-lt);border:1px solid #C7D2FE;border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:2.5rem;}
+  .toc h3{font-size:.88rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.65rem;}
+  .toc ol{padding-left:1.2rem;}
+  .toc li{margin:.22rem 0;}
+  .toc a{color:var(--primary);text-decoration:none;font-size:.9rem;font-weight:500;}
+  .toc a:hover{text-decoration:underline;}
+  .section{margin-bottom:4rem;}
+  .section-anchor{display:block;position:relative;top:-100px;visibility:hidden;}
+  h2{font-size:1.35rem;font-weight:700;padding-bottom:.6rem;border-bottom:2px solid var(--border);margin-bottom:1.4rem;}
+  h2 .sec-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:.8rem;font-weight:700;margin-right:.6rem;}
+  h3{font-size:1rem;font-weight:700;color:var(--text);margin:1.6rem 0 .6rem;}
+  h4{font-size:.92rem;font-weight:600;color:var(--muted);margin:.9rem 0 .4rem;text-transform:uppercase;letter-spacing:.04em;}
+  p{margin-bottom:.85rem;}
+  pre{background:#0F172A;color:#94A3B8;border-radius:var(--radius);padding:1.1rem 1.3rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.6;margin:.75rem 0 1.1rem;border:1px solid #1E293B;}
+  code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:#1E293B;color:#94A3B8;padding:.15em .4em;border-radius:4px;}
+  pre code{background:none;color:inherit;padding:0;font-size:inherit;}
+  .table-wrap{overflow-x:auto;border-radius:var(--radius);box-shadow:var(--shadow);margin:1rem 0 1.5rem;}
+  table{width:100%;border-collapse:collapse;background:var(--surface-1);font-size:.9rem;}
+  thead th{background:var(--primary);color:#fff;text-align:left;padding:.65rem 1rem;font-weight:600;white-space:nowrap;}
+  tbody td{padding:.6rem 1rem;border-bottom:1px solid var(--border);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover td{background:var(--primary-lt);}
+  .decision-card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem 1.6rem;margin:1.2rem 0;box-shadow:var(--shadow);}
+  .decision-card .chosen{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#166534;background:#DCFCE7;padding:.18rem .5rem;border-radius:4px;margin-left:.5rem;}
+  .decision-card .why{background:var(--primary-lt);border-left:3px solid var(--primary);padding:.75rem 1rem;border-radius:0 var(--radius) var(--radius) 0;margin:.85rem 0;font-size:.9rem;}
+  .decision-card .improve{background:#F3E8FF;border-left:3px solid var(--purple);padding:.75rem 1rem;border-radius:0 var(--radius) var(--radius) 0;margin:.85rem 0;font-size:.9rem;}
+  .alts{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.75rem;margin:.75rem 0 1rem;}
+  .alt-card{border-radius:var(--radius);padding:.9rem 1.1rem;border:1px solid var(--border);font-size:.88rem;}
+  .alt-card .alt-name{font-weight:700;margin-bottom:.3rem;}
+  .alt-card .alt-verdict{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem;}
+  .alt-rejected{background:#FEF2F2;border-color:#FECACA;}
+  .alt-rejected .alt-verdict{color:var(--danger);}
+  .alt-consider{background:#FFF8E7;border-color:#FCD34D;}
+  .alt-consider .alt-verdict{color:#92400E;}
+  .alt-future{background:#F0FDF4;border-color:#86EFAC;}
+  .alt-future .alt-verdict{color:#166534;}
+  .roadmap{list-style:none;padding:0;margin:1rem 0;}
+  .roadmap li{display:flex;gap:1rem;align-items:flex-start;padding:.75rem 1rem;border-radius:var(--radius);margin-bottom:.6rem;font-size:.9rem;}
+  .roadmap li .pri{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:.18rem .5rem;border-radius:4px;flex-shrink:0;margin-top:.1rem;}
+  .pri-high{background:#FEE2E2;color:#991B1B;}
+  .pri-med{background:#FFF8E7;color:#92400E;}
+  .pri-low{background:#DCFCE7;color:#166534;}
+  .roadmap li.hl{background:#FEF2F2;}
+  .roadmap li.ml{background:#FFF8E7;}
+  .roadmap li.ll{background:#F0FDF4;}
+  footer{text-align:center;padding:2rem;color:var(--muted);font-size:.82rem;border-top:1px solid var(--border);}
+  footer a{color:var(--primary);text-decoration:none;}
+
+  /* ── Section ribbons ─────────────────────────────────────────── */
+  .section-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+    margin-bottom: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .section-ribbon::before {
+    content: '';
+    position: absolute;
+    right: -20px; top: -20px;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+  }
+  .ribbon-num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: rgba(255,255,255,.35);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+    flex-shrink: 0;
+    min-width: 2.5rem;
+  }
+  .ribbon-info { flex: 1; }
+  .ribbon-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .ribbon-tag {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    background: rgba(255,255,255,.2);
+    color: rgba(255,255,255,.9);
+    padding: .25rem .65rem;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .ribbon-blue   { background: linear-gradient(135deg, #2B5CE6 0%, #1E3A8A 100%); }
+  .ribbon-green  { background: linear-gradient(135deg, #16A34A 0%, #065F46 100%); }
+  .ribbon-purple { background: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%); }
+  .ribbon-amber  { background: linear-gradient(135deg, #D97706 0%, #92400E 100%); }
+  .ribbon-slate  { background: linear-gradient(135deg, #475569 0%, #1E293B 100%); }
+
+  .section-body {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 2.5rem;
+  }
+  /* Replace old .section margin since section-body handles it now */
+  .section { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>🧠 Design Decisions — Iqra Digital Library</h1>
+      <p>Why each technology was chosen, what else was considered, trade-offs, and how to improve further</p>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <span>Docs:</span>
+    <a href="system-architecture.html">📐 Architecture</a>
+    <a href="design-decisions.html" class="active">🧠 Design Decisions</a>
+    <a href="business-impact.html">📈 Business Impact</a>
+  </div>
+</nav>
+
+<div class="doc-wrap">
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#d-faiss">Vector Search: FAISS IndexFlatIP</a></li>
+      <li><a href="#d-bm25">Keyword Search: BM25 via rank_bm25</a></li>
+      <li><a href="#d-hybrid">Hybrid Fusion: Custom vs LangChain</a></li>
+      <li><a href="#d-weights">Fusion Weights: 40% BM25 / 60% FAISS</a></li>
+      <li><a href="#d-hyde">Pre-retrieval: HyDE</a></li>
+      <li><a href="#d-multiquery">Pre-retrieval: Multi-Query + RRF</a></li>
+      <li><a href="#d-rerank">Post-retrieval: Cross-Encoder Re-ranking</a></li>
+      <li><a href="#d-embed">Embedding Model: all-MiniLM-L6-v2</a></li>
+      <li><a href="#d-agent">Agent Framework: LangGraph ReAct</a></li>
+      <li><a href="#d-llm">Multi-Provider LLM Abstraction</a></li>
+      <li><a href="#d-ui">UI Framework: Gradio</a></li>
+      <li><a href="#d-storage">Storage: CSV + Pickle + JSON</a></li>
+      <li><a href="#d-roadmap">Improvement Roadmap</a></li>
+    </ol>
+  </div>
+
+  <!-- ── 1. FAISS ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-faiss"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">01</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Vector Search: FAISS IndexFlatIP</div>
+      </div>
+      <div class="ribbon-tag">Retrieval</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: FAISS IndexFlatIP <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> At 6,810 books with 384-dim vectors, the full index is ~10MB in RAM.
+        IndexFlatIP performs <em>exact</em> inner-product search in milliseconds with zero configuration.
+        It requires no training, no approximation parameters to tune, and outputs deterministic results.
+        When the corpus is this small, the speed advantage of approximate methods (HNSW, IVF) is negligible
+        while their added complexity and recall trade-offs are real.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">FAISS IndexHNSW</div>
+          <div class="alt-verdict">✗ Overkill for now</div>
+          <p>Approximate search, ~5% recall loss, but 10× faster at 1M+ vectors. Worth switching if corpus grows beyond 200k books.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">FAISS IndexIVFFlat</div>
+          <div class="alt-verdict">✗ Not needed yet</div>
+          <p>Requires training on representative vectors. Faster than Flat at large scale but adds complexity. Use at 500k+ books.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">ChromaDB</div>
+          <div class="alt-verdict">⚠ Consider for HuggingFace Spaces</div>
+          <p>Persistent vector DB with metadata filtering built in. Survives cold starts without rebuilding. Trade-off: requires a server process.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Qdrant</div>
+          <div class="alt-verdict">✗ Too heavy</div>
+          <p>Production-grade vector DB. Excellent for millions of vectors with payload filtering. Significant overhead for 6.8k books.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Annoy</div>
+          <div class="alt-verdict">✗ Inferior</div>
+          <p>Memory-mapped approximate search. Read-only after build (no incremental adds). FAISS is strictly better.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">pgvector</div>
+          <div class="alt-verdict">⚠ Consider if adding Postgres</div>
+          <p>Vector extension for PostgreSQL. Ideal if you want metadata filtering + vector search in one SQL query.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> When corpus exceeds 100k books, switch to <code>IndexHNSWFlat</code>
+        (keep recall >99% with ef_search=128). For production deployments, replace with ChromaDB to
+        avoid index rebuilds on server restarts.
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 2. BM25 ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-bm25"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">02</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Keyword Search: BM25 via rank_bm25</div>
+      </div>
+      <div class="ribbon-tag">Retrieval</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: rank_bm25 (BM25Okapi) <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> FAISS alone misses exact-match queries — author names, ISBNs, specific
+        title words. BM25 is the gold standard for keyword retrieval (it powers Elasticsearch). The
+        <code>rank_bm25</code> library is pure Python, no server needed, and integrates in ~5 lines.
+        BM25Okapi specifically handles term frequency saturation better than basic TF-IDF.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Elasticsearch / OpenSearch</div>
+          <div class="alt-verdict">✗ Too heavy</div>
+          <p>Best-in-class keyword search with typo tolerance, stemming, and faceting. Way too heavy to run embedded in a Python app for 6.8k books.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Whoosh</div>
+          <div class="alt-verdict">✗ Unmaintained</div>
+          <p>Pure-Python inverted index. Last major update 2016. rank_bm25 is simpler and more actively maintained.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Typesense</div>
+          <div class="alt-verdict">⚠ Future option</div>
+          <p>Open-source search engine with typo tolerance, fast BM25, and REST API. Excellent alternative if deploying as a service.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">TF-IDF (sklearn)</div>
+          <div class="alt-verdict">✗ Inferior to BM25</div>
+          <p>Classic but doesn't handle term frequency saturation — a word appearing 100× gets 100× the weight. BM25Okapi caps this correctly.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Add <strong>stemming</strong> (e.g. <code>nltk.stem.PorterStemmer</code>)
+        so "mysteries" matches "mystery". Add <strong>stopword filtering</strong> ("a", "the", "of")
+        to reduce noise in BM25 scores. For Arabic books, add Arabic stemming via <code>nltk.stem.isri</code>.
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 3. Custom Hybrid ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-hybrid"></span>
+    <div class="section-ribbon ribbon-purple">
+      <div class="ribbon-num">03</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Hybrid Fusion: Custom Implementation vs LangChain</div>
+      </div>
+      <div class="ribbon-tag">Retrieval</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: Custom BM25 + FAISS fusion (no LangChain) <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> LangChain 1.3.1 (the installed version) silently removed
+        <code>EnsembleRetriever</code> from both <code>langchain</code> and <code>langchain-community</code>.
+        The original v2 plan used it, but it failed at runtime. Rather than pin to an older LangChain version
+        (which breaks the agent), we implemented hybrid fusion directly with <code>rank_bm25</code>
+        and raw FAISS — removing the framework dependency entirely. The result is simpler, faster,
+        and doesn't break with LangChain upgrades.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">LangChain EnsembleRetriever</div>
+          <div class="alt-verdict">✗ Removed in v1.3.1</div>
+          <p>Was the original plan. API was removed in LangChain 1.3.1 without a clear migration path. Using it would require pinning LangChain to a version incompatible with the agent.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Weaviate (native hybrid)</div>
+          <div class="alt-verdict">⚠ Future option</div>
+          <p>Has BM25+vector hybrid built into the database. Ideal if replacing FAISS+CSV with a proper vector DB. Adds a server dependency.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">LlamaIndex HybridRetriever</div>
+          <div class="alt-verdict">✗ Framework lock-in</div>
+          <p>Similar approach but ties the codebase to a second large framework alongside LangChain. Custom implementation avoids this.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> The current RRF implementation in <code>rag_pipeline.py</code>
+        handles multi-query fusion. For single-query hybrid fusion in <code>hybrid_retriever.py</code>,
+        consider replacing min-max normalisation with <strong>learned weights</strong> trained on
+        user click data — when available.
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 4. Weights ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-weights"></span>
+    <div class="section-ribbon ribbon-amber">
+      <div class="ribbon-num">04</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Fusion Weights: 40% BM25 / 60% FAISS</div>
+      </div>
+      <div class="ribbon-tag">Retrieval</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: Fixed 40/60 weighting with min-max normalisation <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> Semantic understanding (FAISS) is more valuable than keyword overlap for
+        book discovery — users rarely know exact titles. 60/40 was chosen empirically by testing against
+        known good results. Min-max normalisation is applied separately to each score vector so the two
+        scales don't interact: a BM25 score of 500 doesn't overwhelm a FAISS score of 0.8 just because
+        it's numerically larger.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">50% / 50% equal weighting</div>
+          <div class="alt-verdict">✗ Tested, worse</div>
+          <p>Equal weighting was tested but keywords dominated for short queries and FAISS dominated for long ones in undesirable ways. 40/60 produced more consistent results.</p>
+        </div>
+        <div class="alt-card alt-future">
+          <div class="alt-name">Learned weights (LTR)</div>
+          <div class="alt-verdict">✓ Best long-term</div>
+          <p>Learning-to-rank using click data / user feedback. Weights adapt per query type. Would require collecting interaction logs first.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Query-type adaptive</div>
+          <div class="alt-verdict">⚠ Moderate win</div>
+          <p>Short queries (&lt;3 words) → higher BM25 weight. Long natural language queries → higher FAISS weight. Rule-based, implementable without ML.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Implement <strong>query-length adaptive weights</strong>:
+        if <code>len(query.split()) &lt; 3</code>, use 60% BM25 / 40% FAISS (keywords likely intentional).
+        For queries with 4+ words, use 30% BM25 / 70% FAISS (natural language intent).
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 5. HyDE ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-hyde"></span>
+    <div class="section-ribbon ribbon-slate">
+      <div class="ribbon-num">05</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Pre-retrieval: HyDE (Hypothetical Document Embeddings)</div>
+      </div>
+      <div class="ribbon-tag">AI</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: LLM generates hypothetical book description; embed that <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> Embedding a user query like "something uplifting about grief" produces a
+        vector in "query space" which doesn't perfectly overlap with "book description space" even though
+        both use the same model. HyDE bridges this gap: the LLM writes a fake 2-sentence book description
+        matching the intent, and <em>that</em> text embeds much closer to actual book descriptions in
+        FAISS. This is especially effective for abstract or emotional queries.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Average HyDE + original query</div>
+          <div class="alt-verdict">⚠ Better than HyDE alone</div>
+          <p>Average the embedding of the hypothetical doc with the original query embedding. Reduces risk of LLM hallucinating in the wrong direction. Low additional cost.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Query2Doc</div>
+          <div class="alt-verdict">⚠ Similar approach</div>
+          <p>Generate a short document summarising what a good answer would contain, then prepend it to the query. Similar idea, slightly different implementation.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Step-back prompting</div>
+          <div class="alt-verdict">✗ Less effective here</div>
+          <p>LLM generates a more abstract version of the query. Helps in QA tasks but less useful for book discovery where we want MORE specificity, not less.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Pseudo-relevance feedback (PRF)</div>
+          <div class="alt-verdict">✗ No LLM needed but weaker</div>
+          <p>Take top-k results from first pass, extract keywords, re-query. Classic NLP technique but requires a first search pass and is less intelligent than HyDE.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Average the HyDE embedding with the original query embedding
+        (weighted 70% HyDE / 30% original). This keeps the directional improvement of HyDE while
+        preventing extreme drift when the LLM hallucinates an irrelevant direction. Code change:
+        <pre><code>q_vec = 0.7 * embed(hypo_doc) + 0.3 * embed(query)
+q_vec /= np.linalg.norm(q_vec)  # re-normalise</code></pre>
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 6. Multi-Query ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-multiquery"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">06</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Pre-retrieval: Multi-Query + Reciprocal Rank Fusion</div>
+      </div>
+      <div class="ribbon-tag">AI</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: LLM generates 3 variants; merge with RRF (k=60) <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> A single query phrasing often misses books that would have been found
+        with a different wording. "Hacking stories" might miss "cybersecurity thrillers" and vice versa.
+        By running 3 LLM-generated variants through the retriever and merging with RRF, we dramatically
+        increase recall without increasing the final result count. RRF was chosen over score averaging
+        because it's rank-based (not score-based) — it works regardless of whether BM25 and FAISS
+        use different score scales.
+      </div>
+      <h4>RRF Formula</h4>
+      <pre><code>score(doc) = Σ  1 / (rank_in_list_i + 60)
+             i∈lists
+
+# The constant 60 controls how steeply rank matters.
+# Higher → gentler (position 1 vs 2 matters less).
+# 60 is the standard from the original 2009 paper.</code></pre>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Score averaging</div>
+          <div class="alt-verdict">✗ Scale-sensitive</div>
+          <p>Average the similarity scores across queries. Breaks when queries have different score distributions (BM25 scores are unbounded, FAISS is [0,1]).</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Simple deduplication</div>
+          <div class="alt-verdict">⚠ Much simpler</div>
+          <p>Collect all results from all queries, deduplicate by title, keep original scores. Loses the rank-boosting effect of RRF. Good fallback if performance is a concern.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Synonym expansion (no LLM)</div>
+          <div class="alt-verdict">✗ Less powerful</div>
+          <p>Use a thesaurus/WordNet to expand query terms. Free (no LLM call) but misses contextual variants and domain-specific synonyms that the LLM generates well.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">5 variants instead of 3</div>
+          <div class="alt-verdict">⚠ Marginal gain</div>
+          <p>More variants = more coverage. Diminishing returns after 3-4 variants. Each adds one retriever call. Good for high-stakes searches.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Cache query variant generations per session — if the user searches
+        the same query twice, reuse the variants. Use <code>functools.lru_cache</code> or a simple
+        <code>dict</code> keyed by the query string. This eliminates redundant LLM calls on re-searches.
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 7. Re-ranking ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-rerank"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">07</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Post-retrieval: Cross-Encoder Re-ranking</div>
+      </div>
+      <div class="ribbon-tag">Ranking</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: cross-encoder/ms-marco-MiniLM-L-6-v2 <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> Bi-encoders (like our FAISS embedder) encode query and document
+        independently, then compare. Cross-encoders see the query and document <em>together</em>
+        in one forward pass, allowing the model to attend to interactions between them — producing
+        much more accurate relevance scores. ms-marco-MiniLM-L-6-v2 is small (~70MB), fast, and
+        trained specifically on relevance ranking tasks (MS MARCO passage ranking dataset).
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-future">
+          <div class="alt-name">Cohere Rerank API</div>
+          <div class="alt-verdict">✓ Best quality, costs money</div>
+          <p>State-of-the-art re-ranking via API. No local model to maintain. ~$1 per 1000 reranked results. Excellent for production where quality justifies cost.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">ms-marco-MiniLM-L-12-v2</div>
+          <div class="alt-verdict">⚠ Better quality, slower</div>
+          <p>12-layer version of the same model. ~15% better ranking accuracy, ~2× slower. Worth switching if GPU is used for inference.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">bge-reranker-base</div>
+          <div class="alt-verdict">⚠ Strong alternative</div>
+          <p>BAAI's re-ranker. Strong multilingual performance — better for Arabic books. Same size as ms-marco-MiniLM.</p>
+        </div>
+        <div class="alt-card alt-future">
+          <div class="alt-name">GPT-4o as re-ranker</div>
+          <div class="alt-verdict">✓ Highest quality (expensive)</div>
+          <p>Ask GPT-4o to rank a list of books for the query. Understands nuance, context, and themes better than any small model. Expensive at scale.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">monoBERT</div>
+          <div class="alt-verdict">✗ Too slow</div>
+          <p>BERT-based cross-encoder, the original. Good quality but 3× slower than MiniLM with similar accuracy. Not worth it.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> The cross-encoder currently loads on first use (~3s). Pre-load it
+        at startup in a background thread so the first re-rank request is instant. Also: run inference
+        on the RTX 3060 GPU by passing <code>device="cuda"</code> to <code>CrossEncoder()</code> —
+        this drops re-ranking latency from ~300ms to ~30ms.
+        <pre><code>from sentence_transformers import CrossEncoder
+self._reranker = CrossEncoder(
+    "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    device="cuda"  <span style="color:#475569"># use GPU if available</span>
+)</code></pre>
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 8. Embedding Model ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-embed"></span>
+    <div class="section-ribbon ribbon-purple">
+      <div class="ribbon-num">08</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Embedding Model: all-MiniLM-L6-v2</div>
+      </div>
+      <div class="ribbon-tag">AI</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: sentence-transformers/all-MiniLM-L6-v2 (22MB, 384-dim) <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> The best balance of size, speed, and quality for English book search.
+        22MB means it loads in &lt;1s and fits in RAM alongside the application. 384 dimensions
+        keep the FAISS index small (~10MB for 6.8k books). Trained on 1 billion sentence pairs —
+        strong semantic understanding despite the small size.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-consider">
+          <div class="alt-name">BAAI/bge-small-en-v1.5</div>
+          <div class="alt-verdict">⚠ Slightly better quality</div>
+          <p>Same size, similar speed, consistently outperforms all-MiniLM on BEIR benchmark. Drop-in replacement worth considering.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">BAAI/bge-m3</div>
+          <div class="alt-verdict">⚠ Best for multilingual</div>
+          <p>Supports 100+ languages including Arabic. 570MB model, 1024-dim. The right choice when Arabic book support becomes important.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">text-embedding-3-small (OpenAI)</div>
+          <div class="alt-verdict">✗ API cost + latency</div>
+          <p>Excellent quality. But requires API call per embedding — adds latency and cost for every search and every book added to the catalogue.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">all-mpnet-base-v2</div>
+          <div class="alt-verdict">✗ Too heavy</div>
+          <p>Higher quality than MiniLM but 420MB, 768-dim. Index doubles in size, load time increases. Not worth it at this scale.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Switch to <code>BAAI/bge-small-en-v1.5</code> for a quality
+        improvement with zero size penalty. For Arabic and multilingual support, plan a migration to
+        <code>BAAI/bge-m3</code> — but note this requires rebuilding the FAISS index (dimensions change
+        from 384 to 1024, and all existing embeddings must be regenerated).
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 9. LangGraph ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-agent"></span>
+    <div class="section-ribbon ribbon-amber">
+      <div class="ribbon-num">09</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Agent Framework: LangGraph ReAct</div>
+      </div>
+      <div class="ribbon-tag">AI</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: LangGraph <code>create_react_agent</code> + MemorySaver <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> The conversational librarian needs: (1) tool use — calling search functions
+        as needed, (2) conversation memory — remembering "the book I mentioned earlier", (3)
+        multi-turn reasoning — planning multi-step actions. LangGraph provides all three via a
+        stateful graph with checkpointing. It also integrates natively with all four LLM providers
+        (Claude, OpenAI, Gemini, Ollama) via LangChain chat models.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Simple chat loop</div>
+          <div class="alt-verdict">✗ No tool use</div>
+          <p>Pass the full conversation history to the LLM each turn. Fast and simple, but can't call search functions — the librarian would be limited to what's in its training data.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">AutoGen</div>
+          <div class="alt-verdict">✗ Multi-agent overkill</div>
+          <p>Designed for multi-agent conversations between AI models. Unnecessary complexity for a single-agent tool-using assistant.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">CrewAI</div>
+          <div class="alt-verdict">⚠ Simpler syntax</div>
+          <p>Higher-level abstraction over LangChain agents. Easier to set up but less control over the graph structure and state management.</p>
+        </div>
+        <div class="alt-card alt-future">
+          <div class="alt-name">Claude's native tool use</div>
+          <div class="alt-verdict">✓ Best for Claude-only</div>
+          <p>Anthropic's tool use API is excellent. If the project commits to Claude as the only provider, native tool use would be simpler than LangGraph + LangChain adapters.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Add <strong>streaming output</strong> so responses appear word-by-word
+        instead of all at once. In Gradio, use <code>gr.ChatInterface</code>'s streaming mode with a generator
+        function. Also add a <strong>tool call indicator</strong> so users see "🔍 Searching local library..."
+        while the agent is working.
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 10. Multi-Provider LLM ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-llm"></span>
+    <div class="section-ribbon ribbon-slate">
+      <div class="ribbon-num">10</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Multi-Provider LLM Abstraction</div>
+      </div>
+      <div class="ribbon-tag">AI</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: Custom LLMProvider class supporting 4 backends <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> Locking into one AI provider creates cost and availability risk. If Anthropic
+        has an outage or raises prices, the whole system fails. Supporting Claude, OpenAI, Gemini, and
+        Ollama lets users choose: free and local (Ollama), most capable (Claude), or cost-optimized (GPT-4o-mini).
+        The custom abstraction means no framework dependency — just direct API calls.
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-future">
+          <div class="alt-name">LiteLLM</div>
+          <div class="alt-verdict">✓ Best long-term</div>
+          <p>Unified interface to 100+ LLM providers. Drop-in replacement for OpenAI API. Would replace our custom LLMProvider with one well-maintained library. Recommended for v3.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Single provider (Claude only)</div>
+          <div class="alt-verdict">✗ Vendor lock-in</div>
+          <p>Simpler code. But creates hard dependency on Anthropic — users without API keys get no AI at all. Ollama support is especially important for offline/cost-free use.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">LangChain as LLM layer</div>
+          <div class="alt-verdict">⚠ Already partially used</div>
+          <p>Use LangChain's chat model abstractions everywhere (not just the agent). Consistent but adds another layer of abstraction and LangChain version sensitivity.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Replace the custom <code>LLMProvider</code> with
+        <strong>LiteLLM</strong>. One library handles all providers, model aliases, fallbacks,
+        cost tracking, and token counting. Reduces maintenance burden significantly.
+        <pre><code>import litellm
+response = litellm.completion(
+    model="claude-sonnet-4-6",
+    messages=[{"role": "user", "content": prompt}]
+)</code></pre>
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 11. Gradio ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-ui"></span>
+    <div class="section-ribbon ribbon-blue">
+      <div class="ribbon-num">11</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">UI Framework: Gradio</div>
+      </div>
+      <div class="ribbon-tag">Framework</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: Gradio 4.x <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> For an AI/ML prototype, Gradio is the fastest path from Python functions
+        to a working web UI — no JavaScript knowledge required. It handles state management, file
+        uploads/downloads, chatbots, and plots natively. First-class support for HuggingFace Spaces
+        deployment (our next deployment target).
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Streamlit</div>
+          <div class="alt-verdict">⚠ Simpler but less flexible</div>
+          <p>Even faster to prototype. But re-runs the entire script on every interaction, making state management complex. Less suitable for chat interfaces.</p>
+        </div>
+        <div class="alt-card alt-future">
+          <div class="alt-name">FastAPI + React</div>
+          <div class="alt-verdict">✓ Best for production</div>
+          <p>Proper separation of backend API and frontend. Full control over UX. Required for mobile responsiveness, PWA, and integrating into existing websites. Significant development time.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Dash (Plotly)</div>
+          <div class="alt-verdict">✗ Charts only</div>
+          <p>Excellent for data dashboards. But not designed for chat interfaces or AI workflows — would require significant workarounds.</p>
+        </div>
+        <div class="alt-card alt-consider">
+          <div class="alt-name">Chainlit</div>
+          <div class="alt-verdict">⚠ Better for chat-focused apps</div>
+          <p>Specifically designed for LLM chat interfaces. Has streaming, tool call visualization, and authentication built in. Worth considering if the librarian chat is the primary UX.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Keep Gradio for the prototype and HuggingFace Spaces deployment.
+        For a production website, build a FastAPI backend (keep all current Python modules as-is)
+        and a React/Next.js frontend that calls the API. The current architecture already supports
+        this — each module is independent and testable.
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 12. Storage ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-storage"></span>
+    <div class="section-ribbon ribbon-green">
+      <div class="ribbon-num">12</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Storage: CSV + Pickle + JSON</div>
+      </div>
+      <div class="ribbon-tag">Storage</div>
+    </div>
+    <div class="section-body">
+    <div class="decision-card">
+      <h3>Chosen: CSV (catalogue) + Pickle (metadata) + JSON (reading list) <span class="chosen">current</span></h3>
+      <div class="why">
+        <strong>Why:</strong> Three formats serve three distinct purposes. CSV is human-readable and
+        editable in Excel — important for a library admin. Pickle stores the pre-processed metadata list
+        parallel to FAISS row indices (fast to load, preserves Python types). JSON for the reading list
+        is simple, human-readable, and personal (git-ignored).
+      </div>
+      <h4>Alternatives Considered</h4>
+      <div class="alts">
+        <div class="alt-card alt-consider">
+          <div class="alt-name">SQLite</div>
+          <div class="alt-verdict">⚠ Better at scale</div>
+          <p>Single file database. Better querying (filter by author, year, rating). Atomic writes. Ideal when catalogue grows beyond 50k books or reading list needs queries.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">PostgreSQL + pgvector</div>
+          <div class="alt-verdict">✗ Overkill for local deployment</div>
+          <p>Combines relational storage + vector search in one system. Excellent for multi-user production deployments. Heavy for a single-user local app.</p>
+        </div>
+        <div class="alt-card alt-rejected">
+          <div class="alt-name">Parquet instead of CSV</div>
+          <div class="alt-verdict">✗ Not human-readable</div>
+          <p>10× faster reads, columnar compression. But not editable in Excel — breaks the "library admin" use case.</p>
+        </div>
+      </div>
+      <div class="improve">
+        <strong>How to improve:</strong> Replace the CSV + Pickle combination with a single
+        <strong>SQLite database</strong> (<code>books.db</code>) using Python's built-in <code>sqlite3</code>.
+        Keep FAISS for vector search but store all metadata in SQLite — enabling filter-before-search
+        (e.g. "find similar books, but only published after 2010 in Arabic").
+      </div>
+    </div>
+    </div><!-- /section-body -->
+  </div>
+
+  <!-- ── 13. Roadmap ── -->
+  <div class="section">
+    <span class="section-anchor" id="d-roadmap"></span>
+    <div class="section-ribbon ribbon-purple">
+      <div class="ribbon-num">13</div>
+      <div class="ribbon-info">
+        <div class="ribbon-title">Improvement Roadmap</div>
+      </div>
+      <div class="ribbon-tag">Roadmap</div>
+    </div>
+    <div class="section-body">
+    <p>Prioritised by impact vs effort. High = quick win. Low = long-term investment.</p>
+
+    <ul class="roadmap">
+      <li class="hl"><span class="pri pri-high">High</span><div><strong>GPU cross-encoder:</strong> Pass <code>device="cuda"</code> to CrossEncoder — drops re-ranking from 300ms to 30ms on RTX 3060. One-line change.</div></li>
+      <li class="hl"><span class="pri pri-high">High</span><div><strong>bge-small-en-v1.5 embedder:</strong> Drop-in replacement for all-MiniLM-L6-v2. Better BEIR benchmark scores, same size. Requires FAISS index rebuild.</div></li>
+      <li class="hl"><span class="pri pri-high">High</span><div><strong>HyDE embedding average:</strong> Blend HyDE doc embedding (70%) with original query (30%). Prevents hallucination drift with minimal code change.</div></li>
+      <li class="hl"><span class="pri pri-high">High</span><div><strong>BM25 stemming:</strong> Add <code>nltk.stem.PorterStemmer</code> to corpus tokenisation. "mysteries" → "mysteri" matches "mystery". Install: <code>pip install nltk</code>.</div></li>
+      <li class="ml"><span class="pri pri-med">Med</span><div><strong>Query-length adaptive weights:</strong> Short queries → higher BM25 weight. Long queries → higher FAISS weight. ~15 lines of code in hybrid_retriever.py.</div></li>
+      <li class="ml"><span class="pri pri-med">Med</span><div><strong>Agent streaming output:</strong> Stream responses word-by-word via Gradio generator. Much better UX than waiting 3s for a full response.</div></li>
+      <li class="ml"><span class="pri pri-med">Med</span><div><strong>Query variant caching:</strong> Cache LLM query variants per session to avoid redundant API calls on re-searches. Simple dict in rag_pipeline.py.</div></li>
+      <li class="ml"><span class="pri pri-med">Med</span><div><strong>bge-reranker-base:</strong> Replace ms-marco cross-encoder with BAAI's reranker for better multilingual (Arabic) support.</div></li>
+      <li class="ml"><span class="pri pri-med">Med</span><div><strong>SQLite migration:</strong> Replace CSV + Pickle with SQLite. Enables filter-before-search and atomic writes without FAISS rebuild.</div></li>
+      <li class="ll"><span class="pri pri-low">Low</span><div><strong>LiteLLM backend:</strong> Replace custom LLMProvider with LiteLLM for 100+ provider support, cost tracking, and automatic fallbacks.</div></li>
+      <li class="ll"><span class="pri pri-low">Low</span><div><strong>bge-m3 embedder:</strong> Switch to multilingual model for Arabic and 100+ language book support. Requires full FAISS index rebuild, 570MB model.</div></li>
+      <li class="ll"><span class="pri pri-low">Low</span><div><strong>HNSW index:</strong> Switch to IndexHNSWFlat when corpus exceeds 200k books. Configure ef_construction=200, ef_search=128 for >99% recall.</div></li>
+      <li class="ll"><span class="pri pri-low">Low</span><div><strong>FastAPI + React frontend:</strong> Production-grade deployment with mobile support, authentication, and API for third-party integrations.</div></li>
+    </ul>
+    </div><!-- /section-body -->
+  </div>
+
+</div><!-- /doc-wrap -->
+
+<footer>
+  <p>Iqra Digital Library — Design Decisions &nbsp;·&nbsp;
+  <a href="system-architecture.html">← Architecture</a> &nbsp;·&nbsp;
+  <a href="business-impact.html">Business Impact →</a></p>
+</footer>
+
+</body>
+</html>
