@@ -45,15 +45,15 @@ PROVIDER_MODELS: dict[str, list[str]] = {
         "gemini-1.5-flash",
         "gemini-pro",
     ],
+    # Only models that support tool/function calling (required for the ReAct agent).
+    # gemma:2b, gemma:7b, phi3 do NOT support tool calling and are excluded.
     "ollama": [
-        "llama3.2",          # 2 GB  — fast, instruction-tuned (recommended)
-        "qwen2.5:3b",        # 1.9 GB — already installed, excellent structured output
-        "qwen2.5:7b",        # 4.7 GB — already installed, high quality
-        "deepseek-r1:8b",    # 5.2 GB — already installed, strong reasoning
-        "gemma:2b",          # 1.7 GB — already installed, lightest option
-        "gemma:7b",          # 5.0 GB — already installed
-        "mistral",           # 4.7 GB — pull with: ollama pull mistral
-        "phi3",              # 2.3 GB — pull with: ollama pull phi3
+        "llama3.2",       # 2 GB  — recommended, full tool calling
+        "qwen2.5:3b",     # 1.9 GB — excellent structured output + tool calling
+        "qwen2.5:7b",     # 4.7 GB — high quality, tool calling
+        "llama3.1",       # 4.7 GB — tool calling supported
+        "mistral",        # 4.7 GB — tool calling supported
+        "deepseek-r1:8b", # 5.2 GB — strong reasoning, tool calling
     ],
 }
 
@@ -157,8 +157,30 @@ class LLMProvider:
     def _connect_ollama(self, model: str) -> str:
         import requests as _requests
         host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        r = _requests.get(f"{host}/api/tags", timeout=5)
-        r.raise_for_status()
+        try:
+            r = _requests.get(f"{host}/api/tags", timeout=10)
+            r.raise_for_status()
+        except _requests.ConnectionError:
+            return (
+                f"❌ Ollama server not reachable at {host}. "
+                "Make sure Ollama is running (open Ollama app or run 'ollama serve')."
+            )
+
+        # Verify the requested model is actually pulled
+        pulled_names = [m.get("name", "") for m in r.json().get("models", [])]
+        model_base   = model.split(":")[0]
+        is_available = any(
+            p == model or p.startswith(model_base + ":") or p.startswith(model_base + " ")
+            for p in pulled_names
+        )
+        if not is_available:
+            available_str = ", ".join(pulled_names) if pulled_names else "(none)"
+            return (
+                f"❌ Model '{model}' is not pulled yet.\n"
+                f"   Run in a terminal:  ollama pull {model}\n"
+                f"   Available models:   {available_str}"
+            )
+
         self._client = host
         return f"✅ Ollama ({model} @ {host}) connected."
 

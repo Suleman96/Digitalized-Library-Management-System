@@ -50,7 +50,7 @@ try:
 
     def _safe_get_type(schema):
         if isinstance(schema, bool):
-            return "boolean" if schema else {}
+            return "any"
         return _original_get_type(schema)
 
     gradio_client_utils.get_type = _safe_get_type
@@ -84,6 +84,9 @@ _auto_model    = os.getenv("LLM_MODEL", "").strip()
 if _auto_provider and _auto_model:
     _status = llm.configure(_auto_provider, _auto_model)
     logger.info("Auto-connect LLM: %s", _status)
+    if llm.is_enabled:
+        agent_mgr.build()
+        logger.info("Auto-connect: LibraryAgent built.")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -1045,6 +1048,7 @@ html.dark .app-header { background: rgba(8,18,30,.82); }
   align-items: flex-end;
   gap: 1rem;
   padding-top: .25rem;
+  margin-bottom: 1rem;
 }
 
 .workspace-eyebrow {
@@ -1059,17 +1063,17 @@ html.dark .app-header { background: rgba(8,18,30,.82); }
 .workspace-heading {
   margin: 0;
   color: var(--text);
-  font-size: clamp(1.9rem, 2.9vw, 2.5rem);
-  line-height: 1.05;
-  letter-spacing: -.05em;
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  line-height: 1.15;
+  letter-spacing: -.04em;
 }
 
 .workspace-copy {
-  margin: .6rem 0 0;
+  margin: .3rem 0 0;
   max-width: 760px;
   color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.72;
+  font-size: .88rem;
+  line-height: 1.6;
 }
 
 .workspace-card-copy {
@@ -1527,6 +1531,7 @@ def _do_recommend(
     use_hyde:  bool,
     use_mq:    bool,
     use_rr:    bool,
+    cat:       str = "Any",
 ) -> tuple[str, gr.update, list]:
     """Search, optionally expand query with AI, and return results."""
     if not prompt.strip():
@@ -1540,19 +1545,42 @@ def _do_recommend(
     if effective_query != prompt:
         logger.info("AI expanded query: '%s' → '%s'", prompt, effective_query)
 
-    local_r, ext_r = reco.recommend(effective_query, lang, ln, en, mr, sm, sb)
+    # External results always come from BookRecommender (Google Books + OpenLibrary)
+    _, ext_r = reco.recommend(effective_query, lang, 0, en, mr, "External Only", sb)
 
-    # Advanced RAG pipeline (HyDE / multi-query / re-rank) when AI is on
-    if use_ai and rag_pipeline.is_ready and sm in ("Both", "Local Only"):
-        pipeline_results = rag_pipeline.search(
-            effective_query,
-            k=ln,
-            use_hyde=use_hyde,
-            use_multi_query=use_mq,
-            use_rerank=use_rr,
-        )
-        if pipeline_results:
-            local_r = pipeline_results
+    # Local results: KG+FAISS hybrid is the default (no AI required).
+    # Advanced RAG stages (HyDE / multi-query / re-rank) layer on top when AI is on.
+    local_r: list = []
+    if sm in ("Both", "Local Only") and ln > 0:
+        if use_ai and rag_pipeline.is_ready and (use_hyde or use_mq or use_rr):
+            # Full RAG pipeline — adds HyDE / multi-query / cross-encoder rerank
+            pipeline_results = rag_pipeline.search(
+                effective_query,
+                k=ln,
+                use_hyde=use_hyde,
+                use_multi_query=use_mq,
+                use_rerank=use_rr,
+            )
+            local_r = pipeline_results if pipeline_results else []
+        elif hybrid_ret.is_ready:
+            # KG + FAISS hybrid (default — no AI needed)
+            candidates = hybrid_ret.search(effective_query, k=ln * 4)
+            lang_code  = settings.languages.get(lang, "")
+            if lang_code:
+                candidates = [b for b in candidates if b.get("language", "") in ("", lang_code)]
+            if cat and cat != "Any":
+                cat_filtered = [b for b in candidates if cat in [c.strip() for c in str(b.get("categories", "")).split(",")]]
+                candidates = cat_filtered if cat_filtered else candidates
+            if mr > 0:
+                filtered = [b for b in candidates if float(b.get("average_rating", 0)) >= mr]
+                candidates = filtered or candidates
+            local_r = candidates[:ln]
+        else:
+            # Fallback: pure FAISS via BookRecommender
+            local_r, _ = reco.recommend(effective_query, lang, ln, 0, mr, "Local Only", sb)
+
+    if sm == "External Only":
+        local_r = []
 
     html        = reco.format_books(local_r, ext_r)
     all_results = local_r + ext_r
@@ -1635,6 +1663,24 @@ def _chat(
 
 def _clear_chat() -> list:
     return []
+
+
+def _rl_titles_for_dd() -> gr.update:
+    titles = [b.get("title", "") for b in reading_list_mgr.get_all()]
+    return gr.update(choices=titles, value=None)
+
+
+def _concierge_ai_status() -> str:
+    if llm.is_enabled:
+        return '<div class="msg-ok" style="margin:0 0 .75rem;">✓ AI connected — concierge is active.</div>'
+    return '<div class="msg-err" style="margin:0 0 .75rem;">⚠ AI not connected. Open <strong>AI Configuration</strong> above to enable the full AI Concierge.</div>'
+
+
+def _reset_follow_up() -> str:
+    return _empty_state_html(
+        "Follow-up insights will appear here",
+        "Select a result to compare similar books or request an AI explanation for the match.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2183,6 +2229,8 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
                                     list(settings.languages.keys()), value="Any", label="Language", scale=1)
                                 scope_dd = gr.Dropdown(
                                     list(settings.search_modes), value="Both", label="Search Scope", scale=1)
+                                cat_dd = gr.Dropdown(
+                                    ["Any"] + _CATEGORIES, value="Any", label="Category", scale=1)
                             with gr.Row():
                                 sort_dd = gr.Dropdown(
                                     list(settings.sort_options), value="Rating", label="Sort By", scale=1)
@@ -2251,24 +2299,30 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
                     query_box, lang_dd, local_sl, ext_sl,
                     rating_sl, scope_dd, sort_dd, ai_search_chk,
                     use_hyde_chk, use_mq_chk, use_rr_chk,
+                    cat_dd,
                 ]
 
-                search_prompt_1.click(
-                    fn=lambda: "Executive leadership books for first-time managers",
-                    outputs=query_box,
-                )
-                search_prompt_2.click(
-                    fn=lambda: "STEM books for teenagers who enjoy hands-on experiments",
-                    outputs=query_box,
-                )
-                search_prompt_3.click(
-                    fn=lambda: "An atmospheric mystery set in the Arab world",
-                    outputs=query_box,
-                )
-                search_prompt_4.click(
-                    fn=lambda: "Beginner-friendly books that explain artificial intelligence clearly",
-                    outputs=query_box,
-                )
+                _sp_outs = [results_html, book_dd, results_state]
+                (search_prompt_1.click(fn=lambda: "Executive leadership books for first-time managers", outputs=query_box)
+                    .then(fn=_do_recommend, inputs=_search_inputs, outputs=_sp_outs)
+                    .then(fn=_reset_follow_up, outputs=similar_html)
+                    .then(fn=lambda: "", outputs=action_msg)
+                    .then(fn=lambda: None, outputs=export_file))
+                (search_prompt_2.click(fn=lambda: "STEM books for teenagers who enjoy hands-on experiments", outputs=query_box)
+                    .then(fn=_do_recommend, inputs=_search_inputs, outputs=_sp_outs)
+                    .then(fn=_reset_follow_up, outputs=similar_html)
+                    .then(fn=lambda: "", outputs=action_msg)
+                    .then(fn=lambda: None, outputs=export_file))
+                (search_prompt_3.click(fn=lambda: "An atmospheric mystery set in the Arab world", outputs=query_box)
+                    .then(fn=_do_recommend, inputs=_search_inputs, outputs=_sp_outs)
+                    .then(fn=_reset_follow_up, outputs=similar_html)
+                    .then(fn=lambda: "", outputs=action_msg)
+                    .then(fn=lambda: None, outputs=export_file))
+                (search_prompt_4.click(fn=lambda: "Beginner-friendly books that explain artificial intelligence clearly", outputs=query_box)
+                    .then(fn=_do_recommend, inputs=_search_inputs, outputs=_sp_outs)
+                    .then(fn=_reset_follow_up, outputs=similar_html)
+                    .then(fn=lambda: "", outputs=action_msg)
+                    .then(fn=lambda: None, outputs=export_file))
 
                 search_evt = search_btn.click(
                     fn=_do_recommend,
@@ -2349,6 +2403,7 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
                                 chat_prompt_4 = gr.Button("Show my reading list", variant="secondary")
 
                     with gr.Column(scale=8):
+                        ai_concierge_warn = gr.HTML(_concierge_ai_status())
                         chatbot = gr.Chatbot(
                             type="messages",
                             height=500,
@@ -2377,10 +2432,17 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
                 def _chat_and_clear(msg, history, thread_id):
                     return _chat(msg, history, thread_id)
 
-                chat_prompt_1.click(fn=lambda: "Find books about ethical AI", outputs=chat_msg)
-                chat_prompt_2.click(fn=lambda: "Suggest thrillers set in Cairo", outputs=chat_msg)
-                chat_prompt_3.click(fn=lambda: "What is similar to Dune?", outputs=chat_msg)
-                chat_prompt_4.click(fn=lambda: "Show my reading list", outputs=chat_msg)
+                _chat_inputs = [chat_msg, chatbot, thread_id_state]
+                _chat_outs   = [chatbot, chat_msg]
+                (chat_prompt_1.click(fn=lambda: "Find books about ethical AI", outputs=chat_msg)
+                    .then(fn=_chat_and_clear, inputs=_chat_inputs, outputs=_chat_outs))
+                (chat_prompt_2.click(fn=lambda: "Suggest thrillers set in Cairo", outputs=chat_msg)
+                    .then(fn=_chat_and_clear, inputs=_chat_inputs, outputs=_chat_outs))
+                (chat_prompt_3.click(fn=lambda: "What is similar to Dune?", outputs=chat_msg)
+                    .then(fn=_chat_and_clear, inputs=_chat_inputs, outputs=_chat_outs))
+                (chat_prompt_4.click(fn=lambda: "Show my reading list", outputs=chat_msg)
+                    .then(fn=_chat_and_clear, inputs=_chat_inputs, outputs=_chat_outs))
+                ai_connect_evt.then(fn=_concierge_ai_status, outputs=ai_concierge_warn)
 
                 chat_send_btn.click(
                     fn=_chat_and_clear,
@@ -2435,9 +2497,11 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
                         </div>""")
                         with gr.Group(elem_classes="manage-card"):
                             gr.HTML('<div class="manage-card-title">Reading list controls</div>')
-                            rl_remove_input = gr.Textbox(
-                                label="Remove by title",
-                                placeholder="Paste the exact saved title",
+                            rl_remove_dd = gr.Dropdown(
+                                choices=[b.get("title", "") for b in reading_list_mgr.get_all()],
+                                label="Select title to remove",
+                                interactive=True,
+                                allow_custom_value=False,
                             )
                             with gr.Row():
                                 rl_remove_btn = gr.Button("Remove Title", variant="stop", scale=1)
@@ -2449,14 +2513,13 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
                     with gr.Column(scale=8):
                         rl_html_out = gr.HTML()
 
-                rl_remove_btn.click(
-                    fn=_rl_remove,
-                    inputs=rl_remove_input,
-                    outputs=[rl_html_out, rl_msg_out],
-                )
+                (rl_remove_btn.click(fn=_rl_remove, inputs=rl_remove_dd, outputs=[rl_html_out, rl_msg_out])
+                    .then(fn=_rl_titles_for_dd, outputs=rl_remove_dd))
                 rl_export_btn.click(fn=_rl_export_pdf, outputs=[rl_file_out, rl_msg_out])
-                rl_clear_btn.click(fn=_rl_clear, outputs=[rl_html_out, rl_msg_out])
+                (rl_clear_btn.click(fn=_rl_clear, outputs=[rl_html_out, rl_msg_out])
+                    .then(fn=_rl_titles_for_dd, outputs=rl_remove_dd))
                 save_evt.then(fn=_load_reading_list, outputs=rl_html_out)
+                save_evt.then(fn=_rl_titles_for_dd, outputs=rl_remove_dd)
 
         # ── 5. Browse Library ─────────────────────────────────────────────
         with gr.TabItem("Catalogue"):
@@ -2580,8 +2643,10 @@ with gr.Blocks(css=_CSS, theme=_theme, js=_JS_DARK_DEFAULT, title="Iqra Digital 
     # ── Auto-load on startup ─────────────────────────────────────────────
     app.load(fn=lambda: _browse("", 1), outputs=_browse_outs)
     app.load(fn=_load_reading_list,     outputs=rl_html_out)
+    app.load(fn=_rl_titles_for_dd,      outputs=rl_remove_dd)
     app.load(fn=_build_analytics,       outputs=_analytics_outputs)
     app.load(fn=_refresh_ai_status,     outputs=ai_pill_out)
+    app.load(fn=_concierge_ai_status,   outputs=ai_concierge_warn)
     app.load(fn=_hero_html,             outputs=hero_out)
 
     # ── Footer ───────────────────────────────────────────────────────────

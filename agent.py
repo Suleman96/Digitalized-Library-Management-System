@@ -1,20 +1,24 @@
 # =============================================================================
 # agent.py — Iqra Digital Library v2
 # =============================================================================
-# LibraryAgent
-# ------------
-# LangGraph ReAct agent that acts as a conversational library assistant.
-# Uses MemorySaver for per-session conversation persistence.
+# LibraryAgent (Orchestrator)
+# ---------------------------
+# LangGraph ReAct orchestrator that routes user requests to two specialist
+# worker agents:
 #
-# Tools available to the agent:
-#   1. search_local_library  — hybrid BM25+FAISS search
-#   2. search_google_books   — live Google Books API search
-#   3. find_similar_books    — semantic similarity search by title
-#   4. save_to_reading_list  — bookmark a book
-#   5. filter_by_rating      — returns a guidance string for the agent
+#   SearchWorker  (agents/search_agent.py)
+#     tools: search_local_library, search_google_books,
+#            find_similar_books, search_by_rating
 #
-# Build sequence (in app.py, after LLM is connected):
-#   agent_mgr.build()  → True if successful
+#   CuratorWorker (agents/curator_agent.py)
+#     tools: save_book, remove_book, view_reading_list, count_reading_list
+#
+# The orchestrator uses MemorySaver for per-session conversation persistence.
+# Workers are stateless — each invocation is an independent ReAct loop.
+#
+# Build sequence (called from app.py after LLM connect):
+#   agent_mgr.build()  → True if orchestrator is built (workers log warnings
+#                         on failure but do not abort the build)
 # =============================================================================
 
 from __future__ import annotations
@@ -26,22 +30,26 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """You are Iqra, a knowledgeable and friendly digital library assistant. \
+_ORCHESTRATOR_SYSTEM_PROMPT = """You are Iqra, a knowledgeable and friendly digital library assistant. \
 Your job is to help users discover great books, get personalised recommendations, \
-and manage their reading list. You have tools to search the local library and Google Books, \
-find similar books, and save books for later.
+and manage their reading list.
 
-Guidelines:
-- Always search before answering book questions — don't rely on training knowledge alone.
-- Keep responses concise and friendly.
-- When listing books, use numbered lists with title, author, and a brief note.
-- If a user wants to save a book, call save_to_reading_list immediately.
-- Suggest related searches when results are limited."""
+You have two specialist workers you MUST delegate to:
+- search_worker: finds books — local library, Google Books, similar books, rating-filtered
+- curator_worker: manages the reading list — save, remove, view, count
+
+Rules:
+- For any book discovery or recommendation request → call search_worker.
+- For any reading list operation → call curator_worker.
+- For compound requests ("find X and save it") → call search_worker first, then curator_worker.
+- Always delegate — never answer book questions from memory alone.
+- Synthesise the workers' responses into a single, friendly reply.
+- Use numbered lists for book results. Keep responses concise."""
 
 
 class LibraryAgent:
     """
-    LangGraph ReAct agent with per-session conversation memory.
+    LangGraph ReAct orchestrator with two specialist worker agents.
 
     Parameters
     ----------
@@ -58,111 +66,59 @@ class LibraryAgent:
         reading_list_mgr: Any,
         llm_provider:     Any,
     ) -> None:
-        self._hybrid   = hybrid_retriever
-        self._reco     = book_recommender
-        self._rl       = reading_list_mgr
-        self._llm_prov = llm_provider
-        self._agent:   Any = None
+        from agents.search_agent  import SearchWorker
+        from agents.curator_agent import CuratorWorker
 
-    # ── Tool factory ─────────────────────────────────────────────────────
+        self._search_worker  = SearchWorker(hybrid_retriever, book_recommender, llm_provider)
+        self._curator_worker = CuratorWorker(reading_list_mgr, llm_provider)
+        self._llm_prov       = llm_provider
+        self._agent: Any     = None
+
+    # ── Tool wrappers (orchestrator delegates to workers) ─────────────────
     def _build_tools(self) -> list:
         from langchain_core.tools import tool
 
-        hybrid = self._hybrid
-        reco   = self._reco
-        rl     = self._rl
+        _search  = self._search_worker
+        _curator = self._curator_worker
 
         @tool
-        def search_local_library(query: str) -> str:
-            """Search the local library (BM25 + FAISS hybrid) for books matching the query."""
-            if hybrid.is_ready:
-                results = hybrid.search(query, k=6)
-            else:
-                local_r, _ = reco.recommend(
-                    query, "Any", 6, 0, 0.0, "Local Only", "Similarity"
-                )
-                results = local_r
-            if not results:
-                return f"No local books found for '{query}'."
-            lines = [
-                f"{i+1}. **{b['title']}** by {b['authors']} "
-                f"(⭐ {b['average_rating']:.1f})"
-                for i, b in enumerate(results)
-            ]
-            return "Local library results:\n" + "\n".join(lines)
+        def search_worker(query: str) -> str:
+            """Delegate any book discovery or recommendation request to the Search specialist.
+            Use for: finding books by topic/genre/author, recommendations, similar books,
+            Google Books search, and rating-filtered searches."""
+            return _search.run(query)
 
         @tool
-        def search_google_books(query: str) -> str:
-            """Search Google Books for books matching the query (live internet search)."""
-            _, ext_r = reco.recommend(
-                query, "Any", 0, 6, 0.0, "External Only", "Similarity"
-            )
-            if not ext_r:
-                return f"No Google Books results for '{query}'."
-            lines = [
-                f"{i+1}. **{b['title']}** by {b['authors']} "
-                f"(⭐ {b['average_rating']:.1f})"
-                for i, b in enumerate(ext_r)
-            ]
-            return "Google Books results:\n" + "\n".join(lines)
+        def curator_worker(instruction: str) -> str:
+            """Delegate any reading list operation to the Curator specialist.
+            Use for: saving a book, removing a book, viewing the reading list,
+            counting saved books."""
+            return _curator.run(instruction)
 
-        @tool
-        def find_similar_books(title: str) -> str:
-            """Find books semantically similar to the given title in the local library."""
-            local_r, _ = reco.recommend(
-                title, "Any", 6, 0, 0.0, "Local Only", "Similarity"
-            )
-            if not local_r:
-                return f"No similar books found for '{title}'."
-            lines = [
-                f"{i+1}. **{b['title']}** by {b['authors']}"
-                for i, b in enumerate(local_r)
-            ]
-            return f"Books similar to '{title}':\n" + "\n".join(lines)
-
-        @tool
-        def save_to_reading_list(title: str, authors: str = "", rating: float = 0.0) -> str:
-            """Save a book to the user's personal reading list by title."""
-            book = {
-                "title":          title,
-                "authors":        authors,
-                "average_rating": rating,
-                "source":         "🤖 AI Agent",
-                "info_link":      "#",
-            }
-            return rl.add(book)
-
-        @tool
-        def filter_by_rating(min_rating: float) -> str:
-            """Instruct filtering of search results to only show books rated >= min_rating."""
-            return (
-                f"Filter applied: showing only books rated {min_rating:.1f} or higher. "
-                f"Please search again and I will focus on higher-rated results."
-            )
-
-        return [
-            search_local_library,
-            search_google_books,
-            find_similar_books,
-            save_to_reading_list,
-            filter_by_rating,
-        ]
+        return [search_worker, curator_worker]
 
     # ── Build / reset ─────────────────────────────────────────────────────
     def build(self) -> bool:
         """
-        Build the LangGraph ReAct agent.
+        Build SearchWorker, CuratorWorker, and the Orchestrator agent.
 
-        Returns True on success, False if the LLM is not connected or
-        a required package is missing.
+        Returns True once the orchestrator is up.
+        Worker failures are logged as warnings — the orchestrator still starts
+        and the tool functions return a graceful error string if a worker is down.
         """
         lc_llm = self._llm_prov.get_langchain_llm()
         if lc_llm is None:
             logger.warning("LibraryAgent.build: no LangChain LLM available.")
             return False
 
+        search_ok  = self._search_worker.build()
+        curator_ok = self._curator_worker.build()
+        if not search_ok:
+            logger.warning("LibraryAgent.build: SearchWorker failed to build.")
+        if not curator_ok:
+            logger.warning("LibraryAgent.build: CuratorWorker failed to build.")
+
         try:
-            from langchain_core.messages import SystemMessage
             from langgraph.prebuilt import create_react_agent
             from langgraph.checkpoint.memory import MemorySaver
 
@@ -173,33 +129,14 @@ class LibraryAgent:
                 lc_llm,
                 tools,
                 checkpointer=memory,
-                state_modifier=SystemMessage(content=_SYSTEM_PROMPT),
+                prompt=_ORCHESTRATOR_SYSTEM_PROMPT,
             )
-            logger.info("LibraryAgent built successfully (%d tools).", len(tools))
+            logger.info(
+                "LibraryAgent orchestrator built — search=%s curator=%s",
+                "✓" if search_ok else "✗",
+                "✓" if curator_ok else "✗",
+            )
             return True
-
-        except TypeError:
-            # Older langgraph versions use 'messages_modifier' instead of 'state_modifier'
-            try:
-                from langchain_core.messages import SystemMessage
-                from langgraph.prebuilt import create_react_agent
-                from langgraph.checkpoint.memory import MemorySaver
-
-                memory = MemorySaver()
-                tools  = self._build_tools()
-
-                self._agent = create_react_agent(
-                    lc_llm,
-                    tools,
-                    checkpointer=memory,
-                    messages_modifier=SystemMessage(content=_SYSTEM_PROMPT),
-                )
-                logger.info("LibraryAgent built (legacy API).")
-                return True
-
-            except Exception as exc:
-                logger.error("LibraryAgent.build fallback failed: %s", exc)
-                return False
 
         except ImportError as exc:
             logger.error(
@@ -214,8 +151,10 @@ class LibraryAgent:
             return False
 
     def reset(self) -> None:
-        """Tear down the agent (call before re-configuring the LLM)."""
+        """Tear down all agents (call before re-configuring the LLM)."""
         self._agent = None
+        self._search_worker.reset()
+        self._curator_worker.reset()
 
     # ── Chat ──────────────────────────────────────────────────────────────
     def chat(self, message: str, thread_id: str) -> str:
@@ -226,10 +165,6 @@ class LibraryAgent:
         ----------
         message   : user's text
         thread_id : unique session identifier (persists conversation history)
-
-        Returns
-        -------
-        str  — assistant reply, or an error/instruction string.
         """
         if self._agent is None:
             return (

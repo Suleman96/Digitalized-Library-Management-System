@@ -61,3 +61,5 @@ logs/
 
 # ── Claude AI (local dev assistant data — never commit) ───────────────────────
 .claude/
+INTERVIEW_PREP_ACCENTURE.pdf
+INTERVIEW_PREP_ACCENTURE.md

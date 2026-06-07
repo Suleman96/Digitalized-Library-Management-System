@@ -59,7 +59,7 @@ class RAGPipeline:
         for ranked in result_lists:
             for rank, book in enumerate(ranked):
                 title = book["title"]
-                rrf_scores[title] = rrf_scores.get(title, 0.0) + 1.0 / (rank + _RRF_K)
+                rrf_scores[title] = rrf_scores.get(title, 0.0) + 1.0 / (rank + 1 + _RRF_K)
                 book_by_title[title] = book
         sorted_titles = sorted(rrf_scores, key=rrf_scores.__getitem__, reverse=True)
         out = []

@@ -62,7 +62,8 @@ class ReadingList:
     def remove(self, title: str) -> str:
         title = title.strip()
         before = len(self._books)
-        self._books = [b for b in self._books if b.get("title") != title]
+        title_lower = title.lower()
+        self._books = [b for b in self._books if str(b.get("title", "")).strip().lower() != title_lower]
         if len(self._books) == before:
             return f"'{title}' not found in reading list."
         self._save()
