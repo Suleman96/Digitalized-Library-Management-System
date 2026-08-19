@@ -43,7 +43,7 @@ def _row_to_book(row: dict[str, Any]) -> dict[str, Any]:
 
 
     return {
-        "id":             book_id(title, authors),
+        "id":             book_id(title, authors, row.get("isbn13") or row.get("isbn10") or ""),
         "title":          title,
         "authors":        authors,
         "subtitle":       str(row.get("subtitle", "") or ""),

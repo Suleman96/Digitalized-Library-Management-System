@@ -24,7 +24,11 @@ def get_reading_list(engine: Engine = Depends(get_engine)) -> list[Book]:
     out: list[Book] = []
     for b in engine.reading_list.get_all():
         if not b.get("id"):
-            b["id"] = book_id(str(b.get("title", "")), str(b.get("authors", "")))
+            b["id"] = book_id(
+                str(b.get("title", "")),
+                str(b.get("authors", "")),
+                b.get("isbn13") or b.get("isbn10") or "",
+            )
         out.append(Book(**b))
     return out
 
@@ -37,7 +41,11 @@ def save_book(req: SaveBookRequest, engine: Engine = Depends(get_engine)) -> Mut
         raise HTTPException(422, "Cannot save a book without a title.")
 
     if not book.get("id"):
-        book["id"] = book_id(str(book.get("title", "")), str(book.get("authors", "")))
+        book["id"] = book_id(
+            str(book.get("title", "")),
+            str(book.get("authors", "")),
+            book.get("isbn13") or book.get("isbn10") or "",
+        )
 
     message = engine.reading_list.add(book)
     return MutationResult(

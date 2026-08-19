@@ -41,12 +41,26 @@ def _finalise(books: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     for b in books:
         if not b.get("id"):
-            b["id"] = book_id(str(b.get("title", "")), str(b.get("authors", "")))
+            b["id"] = book_id(
+                str(b.get("title", "")),
+                str(b.get("authors", "")),
+                b.get("isbn13") or b.get("isbn10") or "",
+            )
         b["published_year"] = clean_year(b.get("published_year"))
         # Covers come out of the pickle as http:// URLs. Google Books refuses
         # those from a browser, so the card would show an empty box.
         if b.get("thumbnail"):
             b["thumbnail"] = to_https(str(b["thumbnail"]))
+
+    # Belt and braces: the same book reaching the UI twice is a bug either way.
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for b in books:
+        if b["id"] in seen:
+            continue
+        seen.add(b["id"])
+        unique.append(b)
+    books[:] = unique
     return books
 
 

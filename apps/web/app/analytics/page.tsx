@@ -141,7 +141,12 @@ export default function AnalyticsPage() {
                     formatter={(v) => [formatCount(Number(v ?? 0)), "books"]}
                     labelFormatter={(l) => `Rating ≈ ${l}`}
                   />
-                  <Bar dataKey="count" fill={c.brand} radius={[3, 3, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    fill={c.brand}
+                    radius={[3, 3, 0, 0]}
+                    isAnimationActive={false}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </Panel>
@@ -167,14 +172,15 @@ export default function AnalyticsPage() {
                     fontSize={10}
                     tickLine={false}
                     axisLine={false}
-                    width={110}
+                    width={150}
+                    interval={0}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
                     cursor={{ fill: c.hairline, opacity: 0.3 }}
                     formatter={(v) => [formatCount(Number(v ?? 0)), "books"]}
                   />
-                  <Bar dataKey="count" radius={[0, 3, 3, 0]}>
+                  <Bar dataKey="count" radius={[0, 3, 3, 0]} isAnimationActive={false}>
                     {data.categories.map((_, i) => (
                       <Cell key={i} fill={i === 0 ? c.brand : `${c.brand}99`} />
                     ))}
@@ -207,6 +213,7 @@ export default function AnalyticsPage() {
                     fontSize={11}
                     tickLine={false}
                     axisLine={{ stroke: c.hairline }}
+                    interval={11}
                   />
                   <YAxis
                     stroke={c.mute}
@@ -226,6 +233,7 @@ export default function AnalyticsPage() {
                     stroke={c.brand}
                     strokeWidth={2}
                     fill="url(#yearFill)"
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>

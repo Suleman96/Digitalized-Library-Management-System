@@ -23,7 +23,7 @@ A book discovery system over ~6,800 titles that combines three independent retri
 | Hybrid query latency | **71 ms** (BM25 + FAISS + graph) |
 | Knowledge graph | **6,810** nodes, **69,116** edges |
 | Vector index | FAISS `IndexFlatIP`, 384-dim, exact search |
-| Cold engine build | ~120 s (pre-baked into the container image for deploys) |
+| Cold engine build | ~120 s first run, **~14 s** afterwards (index cached to `artifacts/`) |
 
 ---
 
@@ -102,15 +102,20 @@ npm run dev                   # starts the API and the web app together
 
 Then open **<http://localhost:3000>**.
 
+> Use `localhost`, not `127.0.0.1`. Next's dev server treats them as different
+> origins and refuses to serve its own JavaScript to the one it does not
+> recognise — the page renders but nothing is interactive. `allowedDevOrigins`
+> in `apps/web/next.config.ts` permits both, but `localhost` is the safe default.
+
 | | |
 | --- | --- |
 | Web app | <http://localhost:3000> |
 | API docs | <http://localhost:8000/docs> |
 | Health | <http://localhost:8000/api/health> |
 
-The first boot builds the FAISS index and knowledge graph (about two minutes)
-and caches both to `artifacts/`. Later boots load from that cache in seconds.
-The header shows "Waking the engine…" until it is ready.
+The first boot embeds all 6,810 books to build the FAISS index (about two
+minutes) and caches it to `artifacts/`. **Later boots reuse that cache and start
+in about 14 seconds.** The header shows "Waking the engine…" until it is ready.
 
 **No API keys are required.** Search, browse, save, and analytics all work out
 of the box. Connecting an AI provider adds query rewriting, HyDE, and the
@@ -128,6 +133,8 @@ conversational concierge — see below.
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
 | `npm run gen:types` | Regenerate TS types from the live OpenAPI schema |
+| `npm run smoke` | Drive every page in a real browser and screenshot it |
+| `npm run stop` | Kill any stray dev servers holding :3000 or :8000 |
 
 ---
 

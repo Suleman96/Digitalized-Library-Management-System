@@ -88,17 +88,24 @@ def clean_year(value: Any) -> str:
         return raw[:4] if len(raw) >= 4 and raw[:4].isdigit() else raw
 
 
-def book_id(title: str, authors: str) -> str:
+def book_id(title: str, authors: str, isbn: Any = "") -> str:
     """
     Deterministic, URL-safe identifier for a book.
 
-    Derived from title + first author so the same book always resolves to the
-    same id across the local index, Google Books, and OpenLibrary.  This is what
-    the frontend routes on (/book/[id]) and keys React lists by; matching on the
-    raw title string breaks on duplicates and on punctuation.
+    Prefers the ISBN, which is the canonical identifier and keeps separate
+    editions distinct — the catalogue holds several titles twice under the same
+    author, and seeding on title alone gave them identical ids, which collided
+    as React keys and made one edition unreachable at /book/[id].
+
+    Falls back to title + first author for records without an ISBN, such as
+    results coming back from Google Books.
     """
-    first_author = (authors or "").split(",")[0].strip().lower()
-    seed = f"{(title or '').strip().lower()}::{first_author}"
+    isbn_clean = str(isbn or "").strip()
+    if isbn_clean and isbn_clean.lower() not in {"nan", "none"}:
+        seed = f"isbn::{isbn_clean.lower()}"
+    else:
+        first_author = (authors or "").split(",")[0].strip().lower()
+        seed = f"{(title or '').strip().lower()}::{first_author}"
     return hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16]
 
 
@@ -185,7 +192,7 @@ class BookRecommender:
         authors_val = _clean(authors)            or "Unknown Author"
 
         return {
-            "id":             book_id(title_val, authors_val),
+            "id":             book_id(title_val, authors_val, raw.get("isbn13") or raw.get("isbn10") or ""),
             "title":          title_val,
             "authors":        authors_val,
             "subtitle":       _clean(raw.get("subtitle")),

@@ -60,6 +60,7 @@ def client(monkeypatch):
         {
             "title": f"Book {i}",
             "authors": "Test Author",
+            "isbn13": f"978000000000{i}",
             "description": "A book about testing.",
             "thumbnail": "",
             "average_rating": 4.2,
@@ -282,3 +283,24 @@ class TestBookNormalisation:
         assert clean_year("") == ""
         assert clean_year(None) == ""
         assert clean_year("n/a") == "n/a"
+
+    def test_ids_are_unique_across_results(self, client):
+        """Duplicate ids collide as React keys and make one row unreachable."""
+        body = client.post("/api/search", json={"query": "mystery"}).json()
+        ids = [b["id"] for b in body["local"]]
+        assert len(ids) == len(set(ids)), f"duplicate ids: {ids}"
+
+    def test_isbn_disambiguates_identical_titles(self):
+        """Two editions share a title and author; the ISBN keeps them apart."""
+        from apps.api.core.recommender import book_id
+
+        a = book_id("Reading Lolita in Tehran", "Azar Nafisi", "9780812971064")
+        b = book_id("Reading Lolita in Tehran", "Azar Nafisi", "9781400060528")
+        assert a != b
+
+    def test_id_falls_back_to_title_without_an_isbn(self):
+        from apps.api.core.recommender import book_id
+
+        assert book_id("T", "A", "") == book_id("T", "A", None)
+        assert book_id("T", "A", "nan") == book_id("T", "A", "")
+        assert len(book_id("T", "A")) == 16
