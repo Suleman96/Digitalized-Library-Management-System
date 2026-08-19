@@ -175,8 +175,8 @@ Contract tests run against a stubbed engine — no model loading, no network, no
 
 | Document | |
 | --- | --- |
-| [docs/rag-assessment.html](./docs/rag-assessment.html) | RAG techniques audited against current practice, with gaps and trade-offs |
-| [docs/migration-v3.html](./docs/migration-v3.html) | The v2 → v3 migration plan and its rationale |
+| [docs/rag-assessment.html](./docs/rag-assessment.html) | RAG techniques audited against current practice, with gaps and trade-offs · [PDF](./docs/rag-assessment.pdf) |
+| [docs/migration-v3.html](./docs/migration-v3.html) | The v2 → v3 migration plan and its rationale · [PDF](./docs/migration-v3.pdf) |
 | [docs/system-architecture.html](./docs/system-architecture.html) | System architecture with data-flow diagrams |
 | [docs/design-decisions.html](./docs/design-decisions.html) | Design decisions: rationale, alternatives, trade-offs |
 | [docs/business-impact.html](./docs/business-impact.html) | Business case and cost analysis |
@@ -199,7 +199,7 @@ apps/
 data/books.csv         catalogue (~6,800 books)
 artifacts/             FAISS index, metadata, graph cache (gitignored)
 tests/                 110 tests
-docs/                  architecture and assessment documents
+docs/                  architecture and assessment documents (HTML + PDF)
 ```
 
 ---

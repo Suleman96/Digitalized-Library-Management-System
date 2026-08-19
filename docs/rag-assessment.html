@@ -522,6 +522,57 @@ footer {
 .bar i { display: block; height: 100%; background: var(--accent); }
 .bar i.good { background: var(--keep); }
 
+
+/* ---------- print / PDF ---------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+  }
+
+  html, body {
+    background: #FFFFFF;
+    font-size: 10.2pt;
+    line-height: 1.5;
+  }
+
+  .wrap { max-width: none; padding: 0; }
+
+  /* Never split a self-contained block across pages. */
+  .phase, .card, .qa, .note, .crit, .verdict, .index, tr, .ship {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  h2.head, h3, .phase > header { break-after: avoid; page-break-after: avoid; }
+  section { break-before: auto; margin-bottom: 1.6rem; }
+
+  /* Screen scrollers must print their full contents, not a clipped window. */
+  .scroller { overflow: visible; }
+  table { min-width: 0; font-size: 8.6pt; }
+  thead { display: table-header-group; }
+  thead th, tbody td { padding: .34rem .5rem; }
+
+  pre {
+    font-size: 7.4pt;
+    line-height: 1.45;
+    overflow: visible;
+    white-space: pre-wrap;
+    word-break: break-word;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .masthead { padding-top: 0; margin-bottom: 1.6rem; }
+  .masthead h1 { font-size: 26pt; }
+  .standfirst { font-size: 11pt; }
+
+  /* The contents index is navigation; it earns no page in a printed copy. */
+  .index { display: none; }
+
+  a { text-decoration: none; }
+  .split { gap: .6rem; }
+  footer { margin-top: 2rem; }
+}
 </style>
 
 <div class="wrap">
