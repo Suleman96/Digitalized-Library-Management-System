@@ -76,7 +76,15 @@ class DynamicBookManager:
         return settings.csv_path
 
     def _load_or_build(self) -> None:
-        """Load CSV from disk; rebuild FAISS index and metadata pickle."""
+        """
+        Load the CSV, then reuse the persisted FAISS index when it is still
+        valid — otherwise rebuild it.
+
+        Rebuilding means embedding every book, which costs roughly two minutes
+        for a 6,800-book catalogue. Doing that on every boot made cold starts
+        painful locally and untenable on a free-tier host, so the index is
+        reused whenever it matches the catalogue.
+        """
         csv = self._csv_path()
 
         # Create empty CSV if it doesn't exist yet
@@ -86,7 +94,47 @@ class DynamicBookManager:
 
         self.df = pd.read_csv(csv, dtype=str).fillna("")
         logger.info("Loaded %d books from %s", len(self.df), csv)
+
+        if self._load_persisted_index():
+            return
+
+        logger.info("Building FAISS index for %d books — this takes a moment…", len(self.df))
         self._rebuild_index()
+
+    def _load_persisted_index(self) -> bool:
+        """
+        Load the cached index and metadata if they agree with the CSV.
+
+        Returns True when the cache was used. Any mismatch or read error falls
+        through to a rebuild rather than serving a stale or misaligned index —
+        a metadata list that is out of step with the FAISS rows returns the
+        wrong books entirely.
+        """
+        index_path = settings.index_path
+        meta_path = settings.meta_path
+
+        if not (index_path.exists() and meta_path.exists()):
+            return False
+
+        try:
+            with open(meta_path, "rb") as fh:
+                metadata = pickle.load(fh)
+            index = faiss.read_index(str(index_path))
+        except Exception as exc:
+            logger.warning("Could not read the cached index (%s) — rebuilding.", exc)
+            return False
+
+        if len(metadata) != len(self.df) or index.ntotal != len(self.df):
+            logger.info(
+                "Cached index is stale (index=%d, metadata=%d, csv=%d) — rebuilding.",
+                index.ntotal, len(metadata), len(self.df),
+            )
+            return False
+
+        self.index = index
+        self.metadata = metadata
+        logger.info("Reused cached FAISS index — %d vectors, no re-embedding needed.", index.ntotal)
+        return True
 
     def _rebuild_index(self) -> None:
         """Rebuild FAISS index from current in-memory self.df, then persist all to disk."""

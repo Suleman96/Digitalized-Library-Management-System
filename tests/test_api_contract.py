@@ -53,7 +53,25 @@ def client(monkeypatch):
 
     retriever = MagicMock()
     retriever.is_ready = True
-    retriever.search.return_value = [_fake_book(f"Book {i}") for i in range(5)]
+    # HybridRetriever reads the metadata pickle directly, so its rows carry no
+    # id and store the year as a float string ("2006.0"). The router must fix
+    # both before serialising.
+    retriever.search.return_value = [
+        {
+            "title": f"Book {i}",
+            "authors": "Test Author",
+            "description": "A book about testing.",
+            "thumbnail": "",
+            "average_rating": 4.2,
+            "ratings_count": 100,
+            "num_pages": 300,
+            "categories": "Fiction",
+            "published_year": "2006.0",
+            "source": "Local Library (KG + FAISS)",
+            "similarity": 0.87,
+        }
+        for i in range(5)
+    ]
 
     pipeline = MagicMock()
     pipeline.is_ready = True
@@ -236,3 +254,31 @@ class TestOpenAPI:
     def test_core_models_are_exported(self, client):
         schemas = client.get("/openapi.json").json()["components"]["schemas"]
         assert {"Book", "SearchRequest", "SearchResponse", "PipelineTrace"} <= set(schemas)
+
+
+# ---------------------------------------------------------------------------
+class TestBookNormalisation:
+    """Rows straight off the retriever need cleaning before they are served."""
+
+    def test_search_backfills_missing_ids(self, client):
+        body = client.post("/api/search", json={"query": "mystery"}).json()
+        for book in body["local"]:
+            assert book["id"], "retriever rows have no id; the router must add one"
+            assert len(book["id"]) == 16
+
+    def test_search_renders_years_without_a_decimal(self, client):
+        """The CSV stores years as floats; '2006.0' must never reach the UI."""
+        body = client.post("/api/search", json={"query": "mystery"}).json()
+        assert body["local"], "fixture should return rows"
+        for book in body["local"]:
+            assert book["published_year"] == "2006", book["published_year"]
+
+    def test_clean_year_handles_every_shape(self):
+        from apps.api.core.recommender import clean_year
+
+        assert clean_year("2006.0") == "2006"
+        assert clean_year(2006.0) == "2006"
+        assert clean_year("2006-04-11") == "2006"
+        assert clean_year("") == ""
+        assert clean_year(None) == ""
+        assert clean_year("n/a") == "n/a"

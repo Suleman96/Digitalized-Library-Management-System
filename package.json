@@ -7,18 +7,19 @@
     "apps/web"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev": "npm run stop && concurrently --kill-others-on-fail -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "python -u -m uvicorn apps.api.main:app --reload --reload-dir apps/api --port 8000",
     "dev:web": "npm run dev --workspace apps/web",
     "build": "npm run build --workspace apps/web",
-    "start": "concurrently -n api,web -c blue,green \"npm:start:api\" \"npm:start:web\"",
+    "start": "concurrently --kill-others-on-fail -n api,web -c blue,green \"npm:start:api\" \"npm:start:web\"",
     "start:api": "python -u -m uvicorn apps.api.main:app --port 8000",
     "start:web": "npm run start --workspace apps/web",
     "lint": "npm run lint --workspace apps/web",
     "typecheck": "npm run typecheck --workspace apps/web",
     "test": "pytest tests/ -q",
     "gen:types": "npm run gen:types --workspace apps/web",
-    "setup": "pip install -r requirements.txt && npm install"
+    "setup": "pip install -r requirements.txt && npm install",
+    "stop": "node scripts/stop-dev.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
