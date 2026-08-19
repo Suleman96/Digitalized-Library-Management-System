@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   Iqra Digital Library — design tokens
+   Palette sampled from assets/Diplotech_Logo_2.png:
+     #165491 diplomatic blue · #ED1C24 signal red · #231F20 ink
+   Red is reserved for destructive actions only, never decoration.
+   =========================================================================== */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --ground: #f7f9fc;
+  --surface: #ffffff;
+  --surface-2: #f1f4f8;
+  --surface-3: #e8edf4;
+  --hairline: #dce3ec;
+  --hairline-soft: #eaeff5;
+
+  --ink: #12181f;
+  --ink-soft: #3d4c5e;
+  --ink-mute: #66788c;
+
+  --brand: #165491;
+  --brand-hover: #0f3d6b;
+  --brand-wash: #e8f0f9;
+  --brand-contrast: #ffffff;
+
+  --danger: #c41219;
+  --danger-wash: #fceded;
+  --success: #14664a;
+  --success-wash: #e4f2ec;
+  --warning: #8a5a05;
+  --warning-wash: #fbf1de;
+
+  --shadow-sm: 0 1px 2px rgb(18 24 31 / 0.06);
+  --shadow-md: 0 4px 16px -4px rgb(18 24 31 / 0.1);
+  --shadow-lg: 0 12px 32px -8px rgb(18 24 31 / 0.16);
+}
+
+.dark {
+  --ground: #0a0f16;
+  --surface: #111925;
+  --surface-2: #0d141e;
+  --surface-3: #182231;
+  --hairline: #22303f;
+  --hairline-soft: #1a2530;
+
+  --ink: #e3ebf4;
+  --ink-soft: #b3c2d2;
+  --ink-mute: #7d91a6;
+
+  --brand: #6ba5e4;
+  --brand-hover: #a5c9f0;
+  --brand-wash: #14263a;
+  --brand-contrast: #06101c;
+
+  --danger: #f0787e;
+  --danger-wash: #331519;
+  --success: #58c79c;
+  --success-wash: #0e2a21;
+  --warning: #d9a94e;
+  --warning-wash: #2b2210;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 16px -4px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-mute: var(--ink-mute);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-wash: var(--brand-wash);
+  --color-brand-contrast: var(--brand-contrast);
+
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-success: var(--success);
+  --color-success-wash: var(--success-wash);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-wash);
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), Georgia, serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+
+  --shadow-card: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --shadow-float: var(--shadow-lg);
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+* {
+  border-color: var(--hairline);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--brand-wash);
+  color: var(--brand);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Numbers that sit in columns should line up. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars — themed, so dark mode does not show a bright system bar
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--hairline);
+  border-radius: 6px;
+  border: 2px solid var(--ground);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-mute);
+}
+
+/* --------------------------------------------------------------------------
+   Motion
+   -------------------------------------------------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface-3) 70%, transparent),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

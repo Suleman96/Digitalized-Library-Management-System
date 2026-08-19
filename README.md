@@ -86,25 +86,48 @@ For a full assessment of these techniques against current practice, see **[docs/
 
 ## Quick start
 
+You need **Python 3.10+** and **Node 20+**. Nothing else.
+
 ```bash
 git clone https://github.com/Suleman96/Digitalized-Library-Management-System.git
 cd Digitalized-Library-Management-System
 
 python -m venv .venv
-.venv\Scripts\activate        # Windows
+.venv\Scripts\activate     # Windows
 source .venv/bin/activate     # macOS / Linux
 
-pip install -r requirements.txt
-cp .env.example .env          # optional — all keys are optional
-
-uvicorn apps.api.main:app --reload --port 8000
+npm run setup                 # installs Python + Node dependencies
+npm run dev                   # starts the API and the web app together
 ```
 
-- **API docs** → <http://localhost:8000/docs>
-- **Health** → <http://localhost:8000/api/health>
-- **OpenAPI schema** → <http://localhost:8000/openapi.json>
+Then open **<http://localhost:3000>**.
 
-The first boot builds the FAISS index and knowledge graph (~2 minutes) and caches both to `artifacts/`. Subsequent boots load from cache.
+| | |
+| --- | --- |
+| Web app | <http://localhost:3000> |
+| API docs | <http://localhost:8000/docs> |
+| Health | <http://localhost:8000/api/health> |
+
+The first boot builds the FAISS index and knowledge graph (about two minutes)
+and caches both to `artifacts/`. Later boots load from that cache in seconds.
+The header shows "Waking the engine…" until it is ready.
+
+**No API keys are required.** Search, browse, save, and analytics all work out
+of the box. Connecting an AI provider adds query rewriting, HyDE, and the
+conversational concierge — see below.
+
+### Every command
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | API + web, both with hot reload |
+| `npm run dev:api` | Just the Python API on :8000 |
+| `npm run dev:web` | Just the Next.js app on :3000 |
+| `npm run build` | Production build of the frontend |
+| `npm test` | The Python test suite |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run lint` | ESLint |
+| `npm run gen:types` | Regenerate TS types from the live OpenAPI schema |
 
 ---
 

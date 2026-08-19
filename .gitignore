@@ -63,3 +63,14 @@ logs/
 .claude/
 INTERVIEW_PREP_ACCENTURE.pdf
 INTERVIEW_PREP_ACCENTURE.md
+
+# ── Node / Next.js (v3 frontend) ──────────────────────────────────────────────
+node_modules/
+.next/
+out/
+next-env.d.ts
+.vercel/
+*.tsbuildinfo
+apps/web/.env.local
+apps/web/AGENTS.md
+apps/web/CLAUDE.md

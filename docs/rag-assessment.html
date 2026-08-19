@@ -523,6 +523,45 @@ footer {
 .bar i.good { background: var(--keep); }
 
 
+/* ---------- plain-English layer ---------- */
+.plain {
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  background: var(--accent-wash);
+  padding: 1rem 1.2rem;
+  margin: 0 0 1.4rem;
+  border-radius: 0 3px 3px 0;
+}
+.plain > b {
+  display: block;
+  font-family: var(--mono);
+  font-size: .67rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: .5rem;
+}
+.plain p { margin: 0 0 .65rem; max-width: 70ch; font-size: .97rem; }
+.plain p:last-child { margin-bottom: 0; }
+.plain em { font-style: italic; color: var(--ink); }
+.plain ul { margin: .5rem 0 0; font-size: .97rem; }
+
+.analogy {
+  font-family: var(--display);
+  font-size: 1.06rem;
+  line-height: 1.5;
+  color: var(--ink);
+  border-left: 2px solid var(--hairline);
+  padding-left: 1rem;
+  margin: .8rem 0 0;
+  max-width: 66ch;
+}
+
+@media print {
+  .plain { break-inside: avoid; page-break-inside: avoid; }
+}
+
 /* ---------- print / PDF ---------- */
 @media print {
   @page {
@@ -598,6 +637,14 @@ footer {
   <p>Close that one gap and this project argues for you at the level you are targeting.</p>
 </div>
 
+
+<div class="plain">
+  <b>Start here &mdash; what this system actually does</b>
+  <p>Imagine a librarian who has read every book in the building. You walk up and say <em>&ldquo;I want something gripping, a mystery, set somewhere in the Middle East.&rdquo;</em> You have not named a title, an author, or a category. A normal computer search would fail here, because you did not use any of the words printed on the books.</p>
+  <p>That is the problem this system solves. It finds books by <em>what you mean</em>, not by the words you typed.</p>
+  <p class="analogy">Everything below is about one question: given a vague, human sentence, how do you reliably surface the right handful of books out of nearly seven thousand?</p>
+</div>
+
 <nav class="index" aria-label="Contents">
   <ol>
     <li><span>01</span><a href="#inventory">What you built &mdash; named correctly</a></li>
@@ -610,6 +657,22 @@ footer {
 
 <section id="inventory">
 <h2 class="head">01 &mdash; What you built, named correctly</h2>
+
+
+<div class="plain">
+  <b>The eight pieces, without the jargon</b>
+  <p>The system uses eight distinct techniques. Here is each one as you would explain it to a colleague over coffee:</p>
+  <ul>
+    <li><strong>Two kinds of search, running at once.</strong> One matches <em>words</em> (like Ctrl+F, but smarter about which words matter). The other matches <em>meaning</em> &mdash; it knows &ldquo;Cairo thriller&rdquo; and &ldquo;Egyptian suspense novel&rdquo; are the same idea. Each fails where the other succeeds, so both run and the results are combined.</li>
+    <li><strong>A map of how books relate.</strong> Beyond the two searches, the system knows which books share an author or a category, so it can surface a good match that neither search would have found on its own.</li>
+    <li><strong>Merging the lists fairly.</strong> When several searches each return a ranked list, you cannot just average their scores &mdash; they use different scales, like adding a temperature in Celsius to one in Fahrenheit. So the system ignores the scores and uses <em>positions</em> instead: a book that appears near the top of several lists wins.</li>
+    <li><strong>Writing a fake &ldquo;perfect book&rdquo; first (HyDE).</strong> Your question is five words; a book description is two hundred. Comparing them directly is lopsided. So the AI first writes a short description of the ideal book for your request, and the system searches using <em>that</em> instead &mdash; comparing a description to descriptions. The fake book is never shown to you; it is scaffolding.</li>
+    <li><strong>Asking the same thing three different ways.</strong> Your exact phrasing might be unlucky. The AI rewrites your request three ways, searches with all of them, and trusts the books that keep appearing.</li>
+    <li><strong>A second, slower, more careful reader (re-ranking).</strong> The first search is fast but rough &mdash; it judges your question and each book separately, then compares. The second pass reads your question and each book <em>together</em>, which is far more accurate but far too slow to run on all 6,810 books. So it only re-reads the top handful and reorders them. Fast and rough to narrow down; slow and careful to finish.</li>
+    <li><strong>An assistant that decides for itself.</strong> Rather than always searching, a conversational agent chooses what to do &mdash; search the library, look up an external catalogue, or manage your saved list &mdash; based on what you asked.</li>
+    <li><strong>Five interchangeable AI brains.</strong> Claude, OpenAI, Gemini, Groq, or one running privately on your own machine. And critically: if none is connected, the search still works. Only the smart extras switch off.</li>
+  </ul>
+</div>
 
 <p>Use these names. Interviewers grade partly on whether you know the vocabulary for what you did, and several of these are described loosely in your current README.</p>
 
@@ -669,6 +732,13 @@ footer {
 <section id="scorecard">
 <h2 class="head">02 &mdash; Scorecard vs the 2026 standard</h2>
 
+
+<div class="plain">
+  <b>How to read this table</b>
+  <p>Think of it as a school report card for the system, marked against what good teams were shipping in 2026. Grades A and B mean &ldquo;as good as, or better than, professional practice.&rdquo; C means &ldquo;works, but dated.&rdquo; D means &ldquo;genuinely missing.&rdquo;</p>
+  <p>The pattern matters more than any single row: <em>the searching is excellent; the proof that it is excellent does not exist yet.</em></p>
+</div>
+
 <div class="scroller">
 <table>
   <thead><tr><th></th><th>Dimension</th><th>Your implementation</th><th>Against the standard</th></tr></thead>
@@ -690,6 +760,15 @@ footer {
 
 <section id="gaps">
 <h2 class="head">03 &mdash; The three real gaps</h2>
+
+
+<div class="plain">
+  <b>Why the missing piece matters so much</b>
+  <p>Right now the system has no way to answer <em>&ldquo;are the results actually good?&rdquo;</em> It has never been graded.</p>
+  <p>The fix is ordinary: write down 50&ndash;100 questions along with the books that genuinely <em>should</em> come back for each. That is the answer key. Then run the system against it and count how often the right books appear near the top.</p>
+  <p class="analogy">A chef who has never tasted their own food may still be excellent &mdash; but they cannot tell you why, and they cannot tell you whether last week&rsquo;s change made it better or worse.</p>
+  <p>Once the answer key exists, every setting in the system becomes a measurable choice rather than an educated guess &mdash; and you can say exactly what each feature is worth and what it costs.</p>
+</div>
 
 <article class="phase">
   <header><span class="num">G1</span><span class="name">No evaluation harness</span><span class="cost">Highest priority</span></header>

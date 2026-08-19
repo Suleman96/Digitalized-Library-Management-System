@@ -460,6 +460,45 @@ footer {
   * { animation: none !important; transition: none !important; }
 }
 
+/* ---------- plain-English layer ---------- */
+.plain {
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  background: var(--accent-wash);
+  padding: 1rem 1.2rem;
+  margin: 0 0 1.4rem;
+  border-radius: 0 3px 3px 0;
+}
+.plain > b {
+  display: block;
+  font-family: var(--mono);
+  font-size: .67rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: .5rem;
+}
+.plain p { margin: 0 0 .65rem; max-width: 70ch; font-size: .97rem; }
+.plain p:last-child { margin-bottom: 0; }
+.plain em { font-style: italic; color: var(--ink); }
+.plain ul { margin: .5rem 0 0; font-size: .97rem; }
+
+.analogy {
+  font-family: var(--display);
+  font-size: 1.06rem;
+  line-height: 1.5;
+  color: var(--ink);
+  border-left: 2px solid var(--hairline);
+  padding-left: 1rem;
+  margin: .8rem 0 0;
+  max-width: 66ch;
+}
+
+@media print {
+  .plain { break-inside: avoid; page-break-inside: avoid; }
+}
+
 /* ---------- print / PDF ---------- */
 @media print {
   @page {
@@ -547,6 +586,15 @@ footer {
   <p>Net result for a reviewer landing on your GitHub: a typed monorepo, an OpenAPI contract, a live URL, and an ML backend that is now legible instead of buried in a 2,724-line UI file.</p>
 </div>
 
+
+<div class="plain">
+  <b>Start here &mdash; what is being rebuilt, and why</b>
+  <p>The original app worked, but it was built with a tool called Gradio &mdash; designed for researchers to demo an idea quickly, not for building a product people use. Think of it as a very good prototyping kit: fast to get something on screen, but you inherit its look, its layout, and its limits.</p>
+  <p>The deeper problem was structural. In the old version, the <em>engine</em> (the part that finds books) and the <em>interface</em> (the part you look at) were fused together. The engine was handing back finished web-page fragments instead of plain information. That is like a chef who refuses to give you ingredients and will only hand over a plated dish &mdash; fine, until you want to serve it differently.</p>
+  <p class="analogy">So this rebuild separates the kitchen from the dining room. The engine now returns raw information; a new, purpose-built interface decides how to present it.</p>
+  <p>Nothing clever is being thrown away. The search intelligence &mdash; the genuinely hard part, and the part worth showing an employer &mdash; is kept exactly as it is. What is being replaced is only the packaging.</p>
+</div>
+
 <nav class="index" aria-label="Contents">
   <ol>
     <li><span>01</span><a href="#audit">What you have today</a></li>
@@ -568,6 +616,13 @@ footer {
 <h2 class="head">01 — What you have today</h2>
 
 <p>An audit of the current tree, and the disposition of each piece in v3.</p>
+
+<div class="plain">
+  <b>Reading the audit table</b>
+  <p>Three outcomes for each file. <strong>Keep</strong> means untouched &mdash; it already does its job properly. <strong>Split</strong> means the file does two jobs and only one belongs there. <strong>Delete</strong> means it existed only to serve the old interface.</p>
+  <p>The two numbers underneath tell the whole story: roughly 1,700 lines of genuinely valuable engine survive, and roughly 3,200 lines of packaging go. <em>Most of what is being deleted is a stylesheet written inside a Python file</em> &mdash; which is as awkward as it sounds.</p>
+</div>
+
 
 <div class="scroller">
 <table>
@@ -633,6 +688,13 @@ def _concierge_ai_status() -> <b>str</b>: ...</pre>
 <!-- ============================================================ -->
 <section id="target">
 <h2 class="head">03 — Target architecture</h2>
+
+
+<div class="plain">
+  <b>The new shape, in one paragraph</b>
+  <p>Three layers, each with one job. <strong>apps/web</strong> is everything you see and click &mdash; written in TypeScript, the language of modern web interfaces. <strong>apps/api</strong> is the switchboard: it receives requests from the interface and passes them to the engine. <strong>apps/api/core</strong> is the engine itself, which knows how to find books and nothing at all about websites.</p>
+  <p>The value of the separation is that each layer can be changed, tested, or replaced without disturbing the others. You could put a mobile app in front of the same engine tomorrow and change nothing underneath.</p>
+</div>
 
 <pre><b>iqra-digital-library/</b>
 │
@@ -921,6 +983,12 @@ def _concierge_ai_status() -> <b>str</b>: ...</pre>
 <!-- ============================================================ -->
 <section id="deploy">
 <h2 class="head">08 — Deployment</h2>
+
+<div class="plain">
+  <b>What &ldquo;deploying&rdquo; means here</b>
+  <p>Putting it on the internet so anyone with the link can use it, without installing anything. Two halves live in two places, because they need different things: the interface is small and needs to load instantly, while the engine is heavy and needs real memory to hold the book index.</p>
+  <p>Both hosts have free tiers that genuinely suffice, so the running cost is zero. The catch is that free servers fall asleep when unused, and waking this one takes about half a minute &mdash; which is why the plan pre-builds the search index into the server package rather than rebuilding it every time it wakes.</p>
+</div>
 
 <div class="split">
   <div class="card">
