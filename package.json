@@ -19,10 +19,12 @@
     "test": "pytest tests/ -q",
     "gen:types": "npm run gen:types --workspace apps/web",
     "setup": "pip install -r requirements.txt && npm install",
-    "stop": "node scripts/stop-dev.mjs"
+    "stop": "node scripts/stop-dev.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "puppeteer-core": "^25.8.0"
   },
   "engines": {
     "node": ">=20"
