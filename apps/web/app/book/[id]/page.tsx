@@ -90,6 +90,7 @@ export default function BookDetailPage() {
               <img
                 src={b.thumbnail}
                 alt=""
+                referrerPolicy="no-referrer"
                 onError={() => setCoverFailed(true)}
                 className="h-full w-full object-cover"
               />

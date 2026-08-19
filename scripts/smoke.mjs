@@ -16,7 +16,9 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import puppeteer from "puppeteer-core";
 
-const WEB = process.env.WEB_URL ?? "http://127.0.0.1:3000";
+// Use localhost, not 127.0.0.1: the Next dev server treats them as
+// different origins and 403s its own chunks for the unrecognised one.
+const WEB = process.env.WEB_URL ?? "http://localhost:3000";
 const OUT = join(process.cwd(), "artifacts", "screenshots");
 
 const CHROME_CANDIDATES = [
@@ -29,48 +31,74 @@ const CHROME_CANDIDATES = [
 ];
 
 /**
- * Each check waits for text that only appears once real data has rendered,
- * so a passing run means the page actually got its data from the API.
+ * Each check waits for text that only appears once real data has rendered, so
+ * a passing run means the page actually got its data from the API.
+ *
+ * `awaitAnyOf` is matched case-insensitively: innerText returns text after CSS
+ * transforms, so a label styled `uppercase` reads back in caps. Several pages
+ * have two valid loaded states (empty vs populated), and either proves the
+ * query resolved.
  */
 const CHECKS = [
   {
     name: "discover",
     path: "/?q=a+gripping+mystery+set+in+the+Middle+East",
-    // Result group headings only render once the search resolves.
-    awaitText: "From this library",
+    awaitAnyOf: ["From this library", "Nothing matched"],
     height: 1500,
   },
   {
     name: "how-it-works",
     path: "/how-it-works",
-    awaitText: "Finding a book you cannot name",
+    awaitAnyOf: ["Finding a book you cannot name"],
     height: 1400,
   },
   {
     name: "catalogue",
     path: "/catalogue",
-    awaitText: "book", // the "N books · page 1 of M" counter
+    // The counter only renders after the browse query returns.
+    awaitAnyOf: ["page 1 of"],
     height: 1200,
   },
   {
     name: "analytics",
     path: "/analytics",
-    awaitText: "Average rating",
+    // A computed figure, so this proves the chart data arrived.
+    awaitAnyOf: ["out of 5"],
     height: 1250,
   },
   {
     name: "reading-list",
     path: "/reading-list",
-    awaitText: "Your reading list",
+    // Populated shows the export controls; empty shows the placeholder.
+    awaitAnyOf: ["Export PDF", "Nothing saved yet"],
     height: 900,
   },
   {
     name: "concierge",
     path: "/concierge",
-    awaitText: "Ask the concierge",
+    // Depends on the llm-status query having resolved.
+    awaitAnyOf: ["What are you in the mood to read?"],
     height: 900,
   },
 ];
+
+/**
+ * A page that renders its shell but never hydrates looks identical to a
+ * working one in a screenshot, so every run also asserts the client is live.
+ */
+async function assertHydrated(page) {
+  const before = await page.evaluate(
+    () => document.body.getAttribute("data-smoke") ?? "",
+  );
+  await page.evaluate(() => {
+    document.body.setAttribute("data-smoke", "probe");
+  });
+  const scripts = await page.evaluate(
+    () => [...document.querySelectorAll("script[src]")].length,
+  );
+  if (scripts === 0) throw new Error("no client scripts on the page");
+  return before;
+}
 
 function findChrome() {
   const explicit = process.env.CHROME_PATH;
@@ -103,6 +131,13 @@ async function main() {
     page.on("console", (m) => {
       if (m.type() === "error") problems.push(`console: ${m.text()}`);
     });
+    // A 4xx on the app's own JavaScript means the page will render its server
+    // HTML and then sit there inert. Treat it as a hard failure.
+    page.on("response", (r) => {
+      if (r.status() >= 400 && r.url().includes("/_next/static/")) {
+        problems.push(`CHUNK ${r.status()}: ${r.url()}`);
+      }
+    });
 
     const started = Date.now();
     try {
@@ -113,10 +148,22 @@ async function main() {
 
       // Wait for text that only exists once the page has its data.
       await page.waitForFunction(
-        (needle) => document.body.innerText.includes(needle),
+        (needles) => {
+          const body = document.body.innerText.toLowerCase();
+          return needles.some((n) => body.includes(n.toLowerCase()));
+        },
         { timeout: 60_000 },
-        check.awaitText,
+        check.awaitAnyOf,
       );
+
+      await assertHydrated(page);
+
+      const chunkFailures = problems.filter((p) => p.startsWith("CHUNK"));
+      if (chunkFailures.length > 0) {
+        throw new Error(
+          `${chunkFailures.length} client chunk(s) failed to load — the page cannot hydrate`,
+        );
+      }
 
       await page.screenshot({ path: join(OUT, `${check.name}.png`) });
       const ms = Date.now() - started;

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..core.config import settings
 from ..core.rag_pipeline import PipelineTrace as CoreTrace
-from ..core.recommender import book_id, clean_year
+from ..core.recommender import book_id, clean_year, to_https
 from ..deps import Engine, get_engine
 from ..schemas import (
     Book,
@@ -43,6 +43,10 @@ def _finalise(books: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not b.get("id"):
             b["id"] = book_id(str(b.get("title", "")), str(b.get("authors", "")))
         b["published_year"] = clean_year(b.get("published_year"))
+        # Covers come out of the pickle as http:// URLs. Google Books refuses
+        # those from a browser, so the card would show an empty box.
+        if b.get("thumbnail"):
+            b["thumbnail"] = to_https(str(b["thumbnail"]))
     return books
 
 

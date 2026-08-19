@@ -12,7 +12,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..core.config import settings
-from ..core.recommender import book_id, clean_year
+from ..core.recommender import book_id, clean_year, to_https
 from ..deps import Engine, get_engine
 from ..schemas import AddBookRequest, Book, BookPage, MutationResult
 
@@ -48,7 +48,7 @@ def _row_to_book(row: dict[str, Any]) -> dict[str, Any]:
         "authors":        authors,
         "subtitle":       str(row.get("subtitle", "") or ""),
         "description":    str(row.get("description", "") or ""),
-        "thumbnail":      thumb or _PLACEHOLDER_COVER,
+        "thumbnail":      to_https(thumb) if thumb else _PLACEHOLDER_COVER,
         "average_rating": _f("average_rating"),
         "ratings_count":  _i("ratings_count"),
         "info_link":      str(row.get("info_link", "") or "#"),

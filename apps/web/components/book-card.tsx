@@ -31,27 +31,33 @@ function Stars({ rating }: { rating: number }) {
 function Cover({ book }: { book: Book }) {
   const [failed, setFailed] = useState(false);
 
-  if (failed || !book.thumbnail) {
-    return (
-      <div className="grid h-full w-full place-items-center bg-surface-3 p-2">
-        <span className="text-center font-display text-[11px] leading-tight text-ink-mute">
-          {truncate(book.title, 42)}
-        </span>
-      </div>
-    );
-  }
-
+  /*
+   * The title always sits underneath. Third-party cover hosts are slow and
+   * frequently refuse the request, and an empty grey rectangle tells the reader
+   * nothing — this way a missing or still-loading cover degrades to something
+   * legible instead of a hole in the grid.
+   */
   return (
-    /* eslint-disable-next-line @next/next/no-img-element -- covers come from
-       arbitrary third-party hosts; configuring next/image remotePatterns for
-       every possible book CDN is not worth the deploy-time coupling. */
-    <img
-      src={book.thumbnail}
-      alt=""
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className="h-full w-full object-cover"
-    />
+    <div className="relative h-full w-full bg-surface-3">
+      <span className="absolute inset-0 grid place-items-center p-2 text-center font-display text-[11px] leading-tight text-ink-mute">
+        {truncate(book.title, 42)}
+      </span>
+
+      {!failed && book.thumbnail && (
+        /* eslint-disable-next-line @next/next/no-img-element -- covers come from
+           arbitrary third-party hosts; configuring next/image remotePatterns for
+           every possible book CDN is not worth the deploy-time coupling. */
+        <img
+          src={book.thumbnail}
+          alt=""
+          loading="lazy"
+          // Google Books refuses requests carrying an unrecognised referrer.
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          className="relative h-full w-full object-cover"
+        />
+      )}
+    </div>
   );
 }
 

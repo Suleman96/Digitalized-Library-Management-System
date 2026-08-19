@@ -107,7 +107,7 @@ def _clean(value: Any) -> str:
     return str(value or "").strip()
 
 
-def _to_https(url: str) -> str:
+def to_https(url: str) -> str:
     """Upgrade http thumbnail URLs to https (avoids mixed-content warnings)."""
     return url.replace("http://", "https://", 1) if url.startswith("http://") else url
 
@@ -174,7 +174,7 @@ class BookRecommender:
             or (raw.get("imageLinks") or {}).get("thumbnail", "")
             or (raw.get("imageLinks") or {}).get("smallThumbnail", "")
         )
-        thumbnail = _to_https(thumbnail) if thumbnail else _PLACEHOLDER_COVER
+        thumbnail = to_https(thumbnail) if thumbnail else _PLACEHOLDER_COVER
 
         # Publication year
         pub_year = clean_year(
