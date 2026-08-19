@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..core.config import settings
 from ..core.rag_pipeline import PipelineTrace as CoreTrace
-from ..core.recommender import book_id
+from ..core.recommender import book_id, clean_year
 from ..deps import Engine, get_engine
 from ..schemas import (
     Book,
@@ -33,14 +33,16 @@ def _empty_trace(query: str) -> PipelineTrace:
     return PipelineTrace(originalQuery=query, stages=[], totalMs=0.0)
 
 
-def _ensure_ids(books: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _finalise(books: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Books coming straight off HybridRetriever read from the metadata pickle and
-    never pass through _normalise(), so they carry no id.  Backfill one.
+    never pass through _normalise(), so they carry no id and their year is still
+    a raw float string.  Fix both here.
     """
     for b in books:
         if not b.get("id"):
             b["id"] = book_id(str(b.get("title", "")), str(b.get("authors", "")))
+        b["published_year"] = clean_year(b.get("published_year"))
     return books
 
 
@@ -160,8 +162,8 @@ def search(req: SearchRequest, engine: Engine = Depends(get_engine)) -> SearchRe
                 req.minRating, "Local Only", _SORT_TO_LEGACY[req.sortBy],
             )
 
-    _ensure_ids(local)
-    _ensure_ids(external)
+    _finalise(local)
+    _finalise(external)
 
     return SearchResponse(
         local=[Book(**b) for b in local],
@@ -178,7 +180,7 @@ def explain(req: ExplainRequest, engine: Engine = Depends(get_engine)) -> Explai
         raise HTTPException(409, "No AI provider connected. Connect one via /api/llm/connect.")
 
     matches = engine.retriever.search(req.query, k=40)
-    _ensure_ids(matches)
+    _finalise(matches)
     book = next((b for b in matches if b.get("id") == req.bookId), None)
     if book is None:
         raise HTTPException(404, "Book not found in the current result set.")

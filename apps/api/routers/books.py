@@ -12,7 +12,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..core.config import settings
-from ..core.recommender import book_id
+from ..core.recommender import book_id, clean_year
 from ..deps import Engine, get_engine
 from ..schemas import AddBookRequest, Book, BookPage, MutationResult
 
@@ -41,15 +41,6 @@ def _row_to_book(row: dict[str, Any]) -> dict[str, Any]:
         except (TypeError, ValueError):
             return 0
 
-    def _year(key: str) -> str:
-        """CSV stores years as strings like '2006.0'; render them as '2006'."""
-        raw = str(row.get(key, "") or "").strip()
-        if not raw:
-            return ""
-        try:
-            return str(int(float(raw)))
-        except (TypeError, ValueError):
-            return raw
 
     return {
         "id":             book_id(title, authors),
@@ -62,7 +53,7 @@ def _row_to_book(row: dict[str, Any]) -> dict[str, Any]:
         "ratings_count":  _i("ratings_count"),
         "info_link":      str(row.get("info_link", "") or "#"),
         "language":       str(row.get("language", "") or "").lower(),
-        "published_year": _year("published_year"),
+        "published_year": clean_year(row.get("published_year")),
         "num_pages":      _i("num_pages"),
         "categories":     str(row.get("categories", "") or ""),
         "source":         "Local Library",

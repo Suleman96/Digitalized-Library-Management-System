@@ -8,11 +8,11 @@
   ],
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "python -m uvicorn apps.api.main:app --reload --reload-dir apps/api --port 8000",
+    "dev:api": "python -u -m uvicorn apps.api.main:app --reload --reload-dir apps/api --port 8000",
     "dev:web": "npm run dev --workspace apps/web",
     "build": "npm run build --workspace apps/web",
     "start": "concurrently -n api,web -c blue,green \"npm:start:api\" \"npm:start:web\"",
-    "start:api": "python -m uvicorn apps.api.main:app --port 8000",
+    "start:api": "python -u -m uvicorn apps.api.main:app --port 8000",
     "start:web": "npm run start --workspace apps/web",
     "lint": "npm run lint --workspace apps/web",
     "typecheck": "npm run typecheck --workspace apps/web",

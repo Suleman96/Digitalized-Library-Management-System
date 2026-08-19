@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 
 import { BookCard, BookCardSkeleton } from "@/components/book-card";
 import { PipelineTrace } from "@/components/pipeline-trace";
@@ -38,11 +38,23 @@ function DiscoverInner() {
   const params = useSearchParams();
   const urlQuery = params.get("q") ?? "";
 
+  /** What the user is editing. */
   const [form, setForm] = useState<SearchRequest>({
     ...DEFAULTS,
     query: urlQuery,
   });
-  const [results, setResults] = useState<SearchResponse | null>(null);
+
+  /**
+   * What has actually been submitted.
+   *
+   * Modelled as a query rather than a mutation: search results are server
+   * state keyed by the request, so useQuery gives caching, dedupe, and
+   * StrictMode safety for free. A mutation would be re-run or discarded on
+   * remount, which is exactly the bug this replaced.
+   */
+  const [submitted, setSubmitted] = useState<SearchRequest | null>(
+    urlQuery ? { ...DEFAULTS, query: urlQuery } : null,
+  );
 
   const { data: llm } = useQuery({
     queryKey: ["llm-status"],
@@ -50,38 +62,31 @@ function DiscoverInner() {
     retry: false,
   });
 
-  const search = useMutation({
-    mutationFn: (req: SearchRequest) => api.search(req),
-    onSuccess: setResults,
+  const results = useQuery({
+    queryKey: ["search", submitted],
+    queryFn: () => api.search(submitted!),
+    enabled: submitted !== null,
+    staleTime: 5 * 60_000,
   });
 
   const run = useCallback(
     (override?: string) => {
       const next = override ? { ...form, query: override } : form;
-      if (override) setForm(next);
       if (!next.query.trim()) return;
+      if (override) setForm(next);
 
-      // Keep the query in the URL so a result page can be shared or reloaded.
+      // Keep the query in the URL so results can be shared or reloaded.
       router.replace(`/?q=${encodeURIComponent(next.query)}`, { scroll: false });
-      search.mutate(next);
+      setSubmitted(next);
     },
-    [form, router, search],
+    [form, router],
   );
 
-  // Run the URL's query once on first load, so a shared link resolves to
-  // results rather than an empty box. Firing a mutation is an external effect,
-  // not a setState, so an effect is the correct place for it.
-  const bootstrapped = useRef(false);
-  const startSearch = search.mutate;
-  useEffect(() => {
-    if (bootstrapped.current || !urlQuery) return;
-    bootstrapped.current = true;
-    startSearch({ ...DEFAULTS, query: urlQuery });
-  }, [urlQuery, startSearch]);
-
-  const error = search.error as ApiError | null;
-  const total = results ? results.local.length + results.external.length : 0;
-  const idle = !results && !search.isPending;
+  const error = results.error as ApiError | null;
+  const data: SearchResponse | undefined = results.data;
+  const loading = results.isFetching;
+  const total = data ? data.local.length + data.external.length : 0;
+  const idle = submitted === null && !loading;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6">
@@ -115,10 +120,10 @@ function DiscoverInner() {
           <button
             type="button"
             onClick={() => run()}
-            disabled={search.isPending || !form.query.trim()}
+            disabled={loading || !form.query.trim()}
             className="rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover disabled:opacity-40"
           >
-            {search.isPending ? "Searching…" : "Search"}
+            {loading ? "Searching…" : "Search"}
           </button>
         </div>
 
@@ -144,7 +149,7 @@ function DiscoverInner() {
             value={form}
             onChange={setForm}
             onSubmit={() => run()}
-            pending={search.isPending}
+            pending={loading}
             llm={llm}
           />
         </aside>
@@ -166,7 +171,7 @@ function DiscoverInner() {
             </div>
           )}
 
-          {search.isPending && (
+          {loading && (
             <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 6 }).map((_, i) => (
                 <BookCardSkeleton key={i} />
@@ -174,15 +179,15 @@ function DiscoverInner() {
             </div>
           )}
 
-          {results && !search.isPending && (
+          {data && !loading && (
             <div className="animate-rise space-y-6">
-              <PipelineTrace trace={results.trace} />
+              <PipelineTrace trace={data.trace} />
 
-              {results.expandedQuery && (
+              {data.expandedQuery && (
                 <p className="rounded-lg border border-hairline-soft bg-surface-2 px-3 py-2 text-[12px] text-ink-soft">
                   The AI searched for{" "}
                   <span className="font-medium text-ink">
-                    &ldquo;{results.expandedQuery}&rdquo;
+                    &ldquo;{data.expandedQuery}&rdquo;
                   </span>{" "}
                   rather than your exact wording.
                 </p>
@@ -200,19 +205,19 @@ function DiscoverInner() {
                 </div>
               )}
 
-              {results.local.length > 0 && (
+              {data.local.length > 0 && (
                 <ResultGroup
                   title="From this library"
                   caption="Indexed locally and searched with the full pipeline"
-                  books={results.local}
+                  books={data.local}
                 />
               )}
 
-              {results.external.length > 0 && (
+              {data.external.length > 0 && (
                 <ResultGroup
                   title="From external catalogues"
                   caption="Google Books and OpenLibrary, re-ranked for relevance"
-                  books={results.external}
+                  books={data.external}
                 />
               )}
             </div>

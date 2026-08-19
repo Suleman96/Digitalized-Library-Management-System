@@ -72,6 +72,22 @@ def _safe_int(val: Any, default: int = 0) -> int:
         return default
 
 
+def clean_year(value: Any) -> str:
+    """
+    Render a publication year as a plain year string.
+
+    The CSV stores years as floats, so a raw read yields "2006.0". Google Books
+    returns full dates like "2006-04-11". Both should display as "2006".
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        return str(int(float(raw)))
+    except (TypeError, ValueError):
+        return raw[:4] if len(raw) >= 4 and raw[:4].isdigit() else raw
+
+
 def book_id(title: str, authors: str) -> str:
     """
     Deterministic, URL-safe identifier for a book.
@@ -161,11 +177,9 @@ class BookRecommender:
         thumbnail = _to_https(thumbnail) if thumbnail else _PLACEHOLDER_COVER
 
         # Publication year
-        pub_year = str(
-            raw.get("published_year")
-            or str(raw.get("publishedDate") or "")[:4]
-            or ""
-        ).strip()
+        pub_year = clean_year(
+            raw.get("published_year") or raw.get("publishedDate") or ""
+        )
 
         title_val   = _clean(raw.get("title"))   or "Unknown Title"
         authors_val = _clean(authors)            or "Unknown Author"
