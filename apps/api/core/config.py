@@ -32,7 +32,31 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------------------------
 # Load .env  (safe no-op when file is absent)
 # ---------------------------------------------------------------------------
-_BASE = Path(__file__).parent.resolve()
+def _find_project_root() -> Path:
+    """
+    Resolve the repository root from anywhere in the package tree.
+
+    Order of precedence:
+      1. IQRA_ROOT environment variable (used by the Docker image)
+      2. Nearest ancestor directory containing a `data/` folder
+      3. Nearest ancestor containing `.git` or `pyproject.toml`
+      4. Three levels up (apps/api/core → repo root) as a last resort
+    """
+    override = os.getenv("IQRA_ROOT", "").strip()
+    if override:
+        return Path(override).resolve()
+
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "data").is_dir():
+            return parent
+    for parent in here.parents:
+        if (parent / ".git").exists() or (parent / "pyproject.toml").exists():
+            return parent
+    return here.parents[3]
+
+
+_BASE = _find_project_root()
 load_dotenv(dotenv_path=_BASE / ".env", override=False)
 
 

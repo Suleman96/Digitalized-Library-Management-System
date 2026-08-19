@@ -1,0 +1,990 @@
+<title>Iqra v3 Migration Dossier</title>
+<style>
+/* ===================================================================
+   IQRA v3 — MIGRATION DOSSIER
+   Palette sampled from assets/Diplotech_Logo_2.png
+   #165491 diplomatic blue · #ED1C24 signal red · #231F20 ink
+   =================================================================== */
+
+:root {
+  --ground:        #FAFBFD;
+  --surface:       #FFFFFF;
+  --surface-sunk:  #F1F4F8;
+  --hairline:      #DCE3EC;
+  --hairline-soft: #EAEFF5;
+
+  --ink:           #12181F;
+  --ink-soft:      #3D4C5E;
+  --ink-mute:      #66788C;
+
+  --accent:        #165491;
+  --accent-deep:   #0F3D6B;
+  --accent-wash:   #E8F0F9;
+
+  --flag:          #C41219;   /* signal red, darkened for AA on white */
+  --flag-wash:     #FCEDEE;
+  --keep:          #14664A;
+  --keep-wash:     #E4F2EC;
+  --watch:         #8A5A05;
+  --watch-wash:    #FBF1DE;
+
+  --code-bg:       #F4F7FA;
+  --focus:         #165491;
+
+  --display: "Iowan Old Style", "Charter", "Palatino Linotype", Palatino, Georgia, serif;
+  --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:        #0A0F16;
+    --surface:       #111925;
+    --surface-sunk:  #0D141E;
+    --hairline:      #22303F;
+    --hairline-soft: #1A2530;
+
+    --ink:           #E3EBF4;
+    --ink-soft:      #B3C2D2;
+    --ink-mute:      #7D91A6;
+
+    --accent:        #6BA5E4;
+    --accent-deep:   #A5C9F0;
+    --accent-wash:   #14263A;
+
+    --flag:          #F0787E;
+    --flag-wash:     #331519;
+    --keep:          #58C79C;
+    --keep-wash:     #0E2A21;
+    --watch:         #D9A94E;
+    --watch-wash:    #2B2210;
+
+    --code-bg:       #0D141E;
+    --focus:         #6BA5E4;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:        #0A0F16;
+  --surface:       #111925;
+  --surface-sunk:  #0D141E;
+  --hairline:      #22303F;
+  --hairline-soft: #1A2530;
+
+  --ink:           #E3EBF4;
+  --ink-soft:      #B3C2D2;
+  --ink-mute:      #7D91A6;
+
+  --accent:        #6BA5E4;
+  --accent-deep:   #A5C9F0;
+  --accent-wash:   #14263A;
+
+  --flag:          #F0787E;
+  --flag-wash:     #331519;
+  --keep:          #58C79C;
+  --keep-wash:     #0E2A21;
+  --watch:         #D9A94E;
+  --watch-wash:    #2B2210;
+
+  --code-bg:       #0D141E;
+  --focus:         #6BA5E4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16.5px;
+  line-height: 1.62;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.5rem 6rem;
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 3.5rem 0 1.5rem;
+  margin-bottom: 2.5rem;
+}
+.marque {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 1.6rem;
+}
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 15px; }
+.bars i { width: 4px; display: block; }
+.bars i:nth-child(1) { height: 9px;  background: #165491; }
+.bars i:nth-child(2) { height: 13px; background: var(--ink); }
+.bars i:nth-child(3) { height: 15px; background: #ED1C24; }
+
+.masthead h1 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 6vw, 3.9rem);
+  line-height: 1.04;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+  margin: 0 0 .9rem;
+}
+.standfirst {
+  font-size: 1.12rem;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 0 0 1.8rem;
+}
+.filed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.2rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--ink-mute);
+  letter-spacing: .04em;
+}
+.filed b { color: var(--ink-soft); font-weight: 500; }
+
+/* ---------- verdict ---------- */
+.verdict {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-top: 3px solid var(--accent);
+  padding: 1.7rem 1.8rem;
+  margin-bottom: 3rem;
+}
+.verdict h2 {
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 .9rem;
+  font-weight: 600;
+}
+.verdict p { margin: 0 0 .8rem; }
+.verdict p:last-child { margin-bottom: 0; }
+
+/* ---------- sections ---------- */
+section { margin-bottom: 3.4rem; scroll-margin-top: 1.5rem; }
+
+h2.head {
+  font-family: var(--display);
+  font-size: clamp(1.6rem, 3.4vw, 2.15rem);
+  font-weight: 600;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+  text-wrap: balance;
+  margin: 0 0 .5rem;
+  padding-bottom: .55rem;
+  border-bottom: 1px solid var(--hairline);
+}
+h3 {
+  font-family: var(--body);
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -.005em;
+  margin: 2rem 0 .55rem;
+}
+h4 {
+  font-family: var(--mono);
+  font-size: .73rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  margin: 1.7rem 0 .6rem;
+}
+p { margin: 0 0 1rem; max-width: 74ch; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; max-width: 74ch; }
+li { margin-bottom: .38rem; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+strong { font-weight: 650; }
+code {
+  font-family: var(--mono);
+  font-size: .855em;
+  background: var(--code-bg);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 3px;
+  padding: .08em .34em;
+}
+
+/* ---------- index ---------- */
+.index {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  padding: 1.4rem 1.6rem;
+  margin-bottom: 3.4rem;
+}
+.index ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  columns: 2;
+  column-gap: 2.5rem;
+  max-width: none;
+}
+.index li {
+  break-inside: avoid;
+  margin-bottom: .42rem;
+  display: flex;
+  gap: .7rem;
+  font-size: .93rem;
+}
+.index li span {
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--ink-mute);
+  padding-top: .18em;
+  min-width: 1.5rem;
+}
+@media (max-width: 620px) { .index ol { columns: 1; } }
+
+/* ---------- phase blocks ---------- */
+.phase {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  margin-bottom: 1.2rem;
+}
+.phase > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .5rem 1.1rem;
+  padding: 1rem 1.4rem;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--hairline);
+}
+.phase .num {
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--accent);
+}
+.phase .name {
+  font-family: var(--display);
+  font-size: 1.24rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  flex: 1 1 auto;
+}
+.phase .cost {
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.phase .body { padding: 1.3rem 1.4rem .4rem; }
+.phase .body > *:last-child { margin-bottom: 1rem; }
+.ship {
+  border-top: 1px dashed var(--hairline);
+  padding: .85rem 1.4rem;
+  font-size: .89rem;
+  color: var(--ink-soft);
+  display: flex;
+  gap: .7rem;
+  align-items: baseline;
+}
+.ship b {
+  font-family: var(--mono);
+  font-size: .69rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ---------- chips ---------- */
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: .16em .5em;
+  border-radius: 3px;
+  white-space: nowrap;
+  vertical-align: .05em;
+}
+.chip.keep  { color: var(--keep);  background: var(--keep-wash);  }
+.chip.cut   { color: var(--flag);  background: var(--flag-wash);  }
+.chip.new   { color: var(--accent);background: var(--accent-wash);}
+.chip.watch { color: var(--watch); background: var(--watch-wash); }
+
+/* ---------- tables ---------- */
+.scroller {
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  margin: 0 0 1.3rem;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-size: .89rem;
+}
+thead th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  padding: .7rem .95rem;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+tbody td {
+  padding: .62rem .95rem;
+  border-bottom: 1px solid var(--hairline-soft);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+td code { background: none; border: none; padding: 0; color: var(--ink-soft); }
+.num-col { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.verb {
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ---------- code / tree ---------- */
+pre {
+  font-family: var(--mono);
+  font-size: .795rem;
+  line-height: 1.62;
+  background: var(--code-bg);
+  border: 1px solid var(--hairline);
+  padding: 1.05rem 1.2rem;
+  overflow-x: auto;
+  margin: 0 0 1.3rem;
+  color: var(--ink-soft);
+  tab-size: 2;
+}
+pre b { color: var(--ink); font-weight: 600; }
+pre i { color: var(--ink-mute); font-style: normal; }
+pre u { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* ---------- callout ---------- */
+.note {
+  border-left: 3px solid var(--watch);
+  background: var(--watch-wash);
+  padding: .9rem 1.15rem;
+  margin: 0 0 1.3rem;
+  font-size: .93rem;
+}
+.note p { margin: 0; max-width: none; }
+.note p + p { margin-top: .6rem; }
+.note b { color: var(--ink); }
+
+.crit {
+  border-left: 3px solid var(--flag);
+  background: var(--flag-wash);
+  padding: .9rem 1.15rem;
+  margin: 0 0 1.3rem;
+  font-size: .93rem;
+}
+.crit p { margin: 0; max-width: none; }
+.crit p + p { margin-top: .6rem; }
+
+/* ---------- split ---------- */
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.3rem;
+}
+.card {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  padding: 1.05rem 1.15rem;
+}
+.card h5 {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  margin: 0 0 .55rem;
+}
+.card p { margin: 0; font-size: .92rem; max-width: none; }
+.card .big {
+  font-family: var(--display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  display: block;
+  margin-bottom: .3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- footer ---------- */
+footer {
+  border-top: 2px solid var(--ink);
+  padding-top: 1.3rem;
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--ink-mute);
+  letter-spacing: .03em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+<div class="masthead">
+  <div class="marque">
+    <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+    DiploTech Solutions · Engineering
+  </div>
+  <h1>Iqra Digital Library: the v3 rebuild</h1>
+  <p class="standfirst">Retiring Gradio, exposing the RAG engine as a typed API, and putting a TypeScript product interface in front of it — on the DiploTech palette, deployed publicly, at zero monthly cost.</p>
+  <div class="filed">
+    <span><b>Repo</b> Suleman96/Digitalized-Library-Management-System</span>
+    <span><b>Branch</b> feature/v3-typescript-frontend</span>
+    <span><b>From</b> v2 (Gradio 4.x)</span>
+    <span><b>Status</b> P0 + P1 shipped &middot; 110 tests green</span>
+  </div>
+</div>
+
+<div class="verdict" style="border-top-color: var(--keep);">
+  <h2 style="color: var(--keep);">Progress &mdash; P0 and P1 are done</h2>
+  <p>The data layer is extracted and the FastAPI service is live. Verified against the running API on the real 6,810-book catalogue:</p>
+  <div class="split" style="margin-top:1.1rem;">
+    <div class="card"><h5>Tests</h5><p><span class="big">110</span>passing, up from 81. Includes 22 new API contract tests and 6 covering the pipeline trace.</p></div>
+    <div class="card"><h5>Hybrid query</h5><p><span class="big">71 ms</span>BM25 + FAISS + knowledge graph, measured end-to-end through the live endpoint.</p></div>
+    <div class="card"><h5>Knowledge graph</h5><p><span class="big">69,116</span>edges across 6,810 nodes, loaded from cache at boot.</p></div>
+  </div>
+  <p style="margin-top:1.1rem;">Remaining: P2&ndash;P6 (frontend, streaming UI, deployment). See the phase list below &mdash; completed phases are marked.</p>
+</div>
+
+<div class="verdict">
+  <h2>The call</h2>
+  <p>The problem with the current build is not that it is written in Python — it is that <strong>the Python is writing HTML</strong>. <code>recommender.py</code> returns rendered book cards as strings. <code>reading_list.py</code> returns a rendered table. <code>app.py</code> holds 1,260 lines of CSS inside a Python string literal. No frontend of any language can be built on that, because there is no data layer to build on.</p>
+  <p>So the migration is a <strong>split, not a rewrite</strong>. The retrieval engine you built — hybrid BM25 + FAISS over a NetworkX knowledge graph, HyDE, multi-query RRF, cross-encoder re-ranking, a LangGraph ReAct agent across five LLM providers — stays in Python, because FAISS, <code>sentence-transformers</code>, and LangGraph have no honest JavaScript equivalent. It gets refactored to return JSON and served by FastAPI. A Next.js 15 + TypeScript app consumes that API and becomes the thing people actually see.</p>
+  <p>Net result for a reviewer landing on your GitHub: a typed monorepo, an OpenAPI contract, a live URL, and an ML backend that is now legible instead of buried in a 2,724-line UI file.</p>
+</div>
+
+<nav class="index" aria-label="Contents">
+  <ol>
+    <li><span>01</span><a href="#audit">What you have today</a></li>
+    <li><span>02</span><a href="#blocker">The blocker, precisely</a></li>
+    <li><span>03</span><a href="#target">Target architecture</a></li>
+    <li><span>04</span><a href="#brand">Brand system</a></li>
+    <li><span>05</span><a href="#api">The API contract</a></li>
+    <li><span>06</span><a href="#phases">Phased build order</a></li>
+    <li><span>07</span><a href="#screens">Screen inventory</a></li>
+    <li><span>08</span><a href="#deploy">Deployment</a></li>
+    <li><span>09</span><a href="#showcase">Making it reviewable</a></li>
+    <li><span>10</span><a href="#risks">Risks and mitigations</a></li>
+    <li><span>&rarr;</span><a href="./rag-assessment.html">RAG scorecard (companion)</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<section id="audit">
+<h2 class="head">01 — What you have today</h2>
+
+<p>An audit of the current tree, and the disposition of each piece in v3.</p>
+
+<div class="scroller">
+<table>
+  <thead>
+    <tr><th>File</th><th class="num-col">Lines</th><th>What it does</th><th>Disposition</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>app.py</code></td><td class="num-col">2,724</td><td>Gradio Blocks UI, 6 tabs, ~1,260 lines of inline CSS, 30 event handlers</td><td><span class="chip cut">Delete</span> Handlers become API routes</td></tr>
+    <tr><td><code>recommender.py</code></td><td class="num-col">525</td><td>Book normalisation, Google Books + OpenLibrary clients, <em>and HTML card rendering</em></td><td><span class="chip watch">Split</span> Keep search, cut <code>_render_card</code></td></tr>
+    <tr><td><code>hybrid_retriever.py</code></td><td class="num-col">434</td><td>BM25 (40%) + FAISS (60%) min-max fusion, NetworkX knowledge graph over authors/categories</td><td><span class="chip keep">Keep as-is</span></td></tr>
+    <tr><td><code>llm_provider.py</code></td><td class="num-col">406</td><td>Claude / OpenAI / Gemini / Groq / Ollama abstraction, HyDE + query-variant generation</td><td><span class="chip keep">Keep as-is</span></td></tr>
+    <tr><td><code>agent.py</code></td><td class="num-col">194</td><td>LangGraph ReAct agent, 5 tools, <code>MemorySaver</code> threads</td><td><span class="chip watch">Extend</span> Add token streaming</td></tr>
+    <tr><td><code>manager.py</code></td><td class="num-col">182</td><td>CSV ↔ FAISS lifecycle, atomic add/remove</td><td><span class="chip keep">Keep as-is</span></td></tr>
+    <tr><td><code>config.py</code></td><td class="num-col">165</td><td>Frozen <code>Settings</code> dataclass, key resolution</td><td><span class="chip keep">Keep as-is</span></td></tr>
+    <tr><td><code>rag_pipeline.py</code></td><td class="num-col">152</td><td>HyDE, multi-query + RRF, cross-encoder re-rank, graceful degradation</td><td><span class="chip keep">Keep as-is</span></td></tr>
+    <tr><td><code>reading_list.py</code></td><td class="num-col">141</td><td>JSON-backed bookmarks, <em>and <code>to_html()</code></em></td><td><span class="chip watch">Split</span> Cut <code>to_html</code></td></tr>
+    <tr><td><code>exporter.py</code></td><td class="num-col">125</td><td>fpdf2 PDF export</td><td><span class="chip keep">Keep</span> Serve as a download route</td></tr>
+    <tr><td><code>tests/</code> ×5</td><td class="num-col">—</td><td>81 passing tests over config, manager, recommender, retriever, RAG</td><td><span class="chip keep">Keep</span> Add API contract tests</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="split">
+  <div class="card"><h5>Engine, worth keeping</h5><p><span class="big">1,673</span>lines of retrieval, RAG, and agent code that survive the migration untouched or nearly so.</p></div>
+  <div class="card"><h5>Presentation, being replaced</h5><p><span class="big">3,249</span>lines of Gradio UI, inline CSS, and Python-side HTML rendering that v3 deletes.</p></div>
+  <div class="card"><h5>Current tests</h5><p><span class="big">81</span>passing. None of them cover the UI layer, which is why deleting it is low-risk.</p></div>
+</div>
+
+<p>That ratio is the whole argument. You are not throwing away work — you are throwing away the <em>packaging</em>, which is the part that was never the interesting bit anyway.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="blocker">
+<h2 class="head">02 — The blocker, precisely</h2>
+
+<p>Here is the pattern that has to change, taken from the current code:</p>
+
+<pre><i># recommender.py — the backend is a template engine</i>
+def _render_card(self, book: dict) -> <b>str</b>:
+    return f'&lt;div class="book-card"&gt;&lt;img src="{book["thumbnail"]}"&gt;…'
+
+<i># reading_list.py</i>
+def to_html(self) -> <b>str</b>: ...
+
+<i># app.py — handlers return HTML strings straight into gr.HTML()</i>
+def _do_recommend(...) -> tuple[<b>str</b>, gr.update, list]: ...
+def _load_reading_list() -> <b>str</b>: ...
+def _concierge_ai_status() -> <b>str</b>: ...</pre>
+
+<div class="crit">
+<p><strong>Every one of these must return a Python object that serialises to JSON.</strong> Until that is true, the frontend language is irrelevant — React would just be receiving pre-rendered markup and dumping it through <code>dangerouslySetInnerHTML</code>, which is both an XSS surface and a pointless architecture.</p>
+</div>
+
+<p>The good news: the canonical book schema already exists. <code>BookRecommender._normalise()</code> at <a href="../recommender.py">recommender.py:139</a> already produces exactly the flat dict a TypeScript type wants — <code>title</code>, <code>authors</code>, <code>subtitle</code>, <code>description</code>, <code>thumbnail</code>, <code>average_rating</code>, <code>ratings_count</code>, <code>info_link</code>, <code>language</code>, <code>published_year</code>, <code>num_pages</code>, <code>source</code>, <code>similarity</code>. The data model is sound. It is only the last mile that got templated.</p>
+
+<h3>The one schema change worth making</h3>
+<p>Books currently have no stable identifier — the UI selects them by <code>title</code> string, which breaks on duplicates and on any title containing punctuation. v3 adds a deterministic <code>id</code> (a hash of title + first author) so the frontend can key lists and route to <code>/book/[id]</code> properly.</p>
+
+<h3>Analytics needs the same treatment</h3>
+<p><code>_build_analytics()</code> currently renders three Matplotlib PNGs server-side. In v3 it returns plain series data and the frontend draws them — which is faster, interactive, theme-aware, and removes Matplotlib from the server image entirely.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="target">
+<h2 class="head">03 — Target architecture</h2>
+
+<pre><b>iqra-digital-library/</b>
+│
+├── <u>apps/web/</u>                         <i>← NEW · Next.js 15 · TypeScript</i>
+│   ├── app/
+│   │   ├── layout.tsx                 <i>root shell, theme provider, fonts</i>
+│   │   ├── page.tsx                   <i>Discovery — the landing surface</i>
+│   │   ├── concierge/page.tsx         <i>streaming agent chat</i>
+│   │   ├── catalogue/page.tsx         <i>paginated browse + filters</i>
+│   │   ├── reading-list/page.tsx      <i>saved books</i>
+│   │   ├── analytics/page.tsx         <i>charts</i>
+│   │   ├── book/[id]/page.tsx</b>          <i>detail + similar books</i>
+│   │   └── how-it-works/page.tsx      <i>the RAG explainer — see §09</i>
+│   ├── components/
+│   │   ├── ui/                        <i>shadcn/ui primitives</i>
+│   │   ├── book-card.tsx              <i>replaces _render_card</i>
+│   │   ├── search-panel.tsx           <i>replaces the Gradio sidebar</i>
+│   │   ├── pipeline-trace.tsx         <i>NEW — visualises the RAG stages</i>
+│   │   └── chat-stream.tsx            <i>SSE consumer</i>
+│   ├── lib/api.ts                     <i>typed fetch client</i>
+│   └── lib/types.ts                   <i>generated from OpenAPI</i>
+│
+├── <u>apps/api/</u>                         <i>← NEW shell, EXISTING brain</i>
+│   ├── main.py                        <i>FastAPI app + CORS</i>
+│   ├── routers/
+│   │   ├── search.py    ├── agent.py
+│   │   ├── books.py     ├── reading_list.py
+│   │   ├── analytics.py └── llm.py
+│   ├── schemas.py                     <i>Pydantic models = source of truth</i>
+│   ├── deps.py                        <i>singleton lifespan wiring</i>
+│   └── <b>core/</b>                          <i>your existing modules, moved</i>
+│       ├── hybrid_retriever.py  <i>unchanged</i>
+│       ├── rag_pipeline.py      <i>unchanged</i>
+│       ├── llm_provider.py      <i>unchanged</i>
+│       ├── agent.py             <i>+ streaming</i>
+│       ├── manager.py           <i>unchanged</i>
+│       ├── recommender.py       <i>HTML rendering removed</i>
+│       ├── reading_list.py      <i>to_html removed</i>
+│       └── config.py            <i>unchanged</i>
+│
+├── data/books.csv                     <i>~6,800 books, unchanged</i>
+├── docs/                              <i>architecture + this dossier</i>
+└── .github/workflows/                 <i>pytest + tsc + eslint + build</i></pre>
+
+<p>Startup wiring moves out of module scope and into a FastAPI <code>lifespan</code> handler — the current app builds <code>HybridRetriever</code>, loads <code>all-MiniLM-L6-v2</code>, and constructs the agent at import time, which makes the module impossible to import in a test without paying a ~15-second model load.</p>
+
+<h4>Stack decisions and why</h4>
+<div class="scroller">
+<table>
+  <thead><tr><th>Choice</th><th>Instead of</th><th>Reason</th></tr></thead>
+  <tbody>
+    <tr><td>Next.js 15, App Router</td><td>Vite SPA</td><td>Server components render book grids without shipping the data twice; file routing gives shareable URLs per book, which the Gradio version cannot do at all</td></tr>
+    <tr><td>TypeScript, <code>strict: true</code></td><td>JavaScript</td><td>The point of the exercise. Types generated from the API's OpenAPI schema, so drift is a build error</td></tr>
+    <tr><td>Tailwind v4 + shadcn/ui</td><td>Hand-written CSS</td><td>You already hand-wrote 1,260 lines of CSS once. Tokens in <code>@theme</code>, components you own in-repo, no runtime dependency</td></tr>
+    <tr><td>TanStack Query</td><td>Redux / Zustand</td><td>Nearly all state here is server state — caching, dedupe, and background refetch are the actual requirements</td></tr>
+    <tr><td>Recharts</td><td>Matplotlib PNGs</td><td>Interactive, theme-aware, and drops a heavy dependency from the API image</td></tr>
+    <tr><td>FastAPI</td><td>Flask / Django</td><td>Pydantic models generate the OpenAPI spec that generates the TS types — one contract, three consumers</td></tr>
+    <tr><td>SSE for chat</td><td>WebSockets</td><td>Unidirectional token streaming. Simpler, survives proxies, works on HF Spaces free tier</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="brand">
+<h2 class="head">04 — Brand system</h2>
+
+<p>Sampled directly from <code>assets/Diplotech_Logo_2.png</code>. Your current Gradio theme uses emerald and <code>#4F8EF7</code> — neither appears anywhere in the DiploTech identity. v3 fixes that.</p>
+
+<div class="scroller">
+<table>
+  <thead><tr><th>Token</th><th>Light</th><th>Dark</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><code>--brand</code></td><td><code>#165491</code></td><td><code>#6BA5E4</code></td><td>Primary actions, links, active nav. The logo's blue bar</td></tr>
+    <tr><td><code>--brand-deep</code></td><td><code>#0F3D6B</code></td><td><code>#A5C9F0</code></td><td>Hover states, headings on wash</td></tr>
+    <tr><td><code>--signal</code></td><td><code>#C41219</code></td><td><code>#F0787E</code></td><td>Destructive only — remove book, clear list. The logo's red, darkened for AA</td></tr>
+    <tr><td><code>--ink</code></td><td><code>#12181F</code></td><td><code>#E3EBF4</code></td><td>Body text. Blue-biased near-black, from the logo's <code>#231F20</code></td></tr>
+    <tr><td><code>--ground</code></td><td><code>#FAFBFD</code></td><td><code>#0A0F16</code></td><td>Page background</td></tr>
+    <tr><td><code>--surface</code></td><td><code>#FFFFFF</code></td><td><code>#111925</code></td><td>Cards, panels, sheets</td></tr>
+    <tr><td><code>--hairline</code></td><td><code>#DCE3EC</code></td><td><code>#22303F</code></td><td>Borders, dividers</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+<p><b>Reserve the red.</b> The marketing site uses red as a brand accent; a data-dense product interface cannot. In v3 red means <em>destructive or failed</em> and nothing else, so that when it appears the user knows immediately what it means. Brand presence comes from the blue and the logo mark.</p>
+</div>
+
+<h3>Typography</h3>
+<p>Two families, loaded via <code>next/font</code> so they self-host and never flash: a serif for display headings — which reads as institutional and diplomatic rather than generic-startup — and a neutral sans for the interface. A monospace face carries scores, counts, and the pipeline trace.</p>
+
+<h3>What carries over from the marketing site</h3>
+<ul>
+  <li>The bar-mark logo, top-left, linking back to <code>diplotech-solutions.com</code></li>
+  <li>Bilingual EN/AR treatment — the app already carries <span dir="rtl">مكتبة إقرأ الرقمية</span>, which should be a first-class part of the masthead, not a README line</li>
+  <li>The site's light, high-clarity default — with dark mode added, because this is a tool people use at length, not a page they skim</li>
+</ul>
+<p>What deliberately does <em>not</em> carry over: the marketing site's hero proportions and CTA rhythm. A product needs to put controls and results above the fold.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="api">
+<h2 class="head">05 — The API contract</h2>
+
+<p>Every Gradio handler maps to exactly one route. This table is the specification — build the backend against it, generate the types from it.</p>
+
+<div class="scroller">
+<table>
+  <thead><tr><th>Route</th><th></th><th>Replaces</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>/api/search</code></td><td class="verb">POST</td><td><code>_do_recommend</code></td><td><code>{ local: Book[], external: Book[], trace: PipelineTrace }</code></td></tr>
+    <tr><td><code>/api/books</code></td><td class="verb">GET</td><td><code>_browse</code></td><td><code>{ items: Book[], page, total, pageCount }</code></td></tr>
+    <tr><td><code>/api/books</code></td><td class="verb">POST</td><td><code>_add_book</code></td><td><code>{ book: Book, indexRebuilt: boolean }</code></td></tr>
+    <tr><td><code>/api/books/{id}</code></td><td class="verb">GET</td><td>—</td><td><code>Book</code> — new, enables shareable book URLs</td></tr>
+    <tr><td><code>/api/books/{id}</code></td><td class="verb">DELETE</td><td><code>_remove_book</code></td><td><code>{ removed: boolean }</code></td></tr>
+    <tr><td><code>/api/books/{id}/similar</code></td><td class="verb">GET</td><td><code>_find_similar</code></td><td><code>Book[]</code></td></tr>
+    <tr><td><code>/api/explain</code></td><td class="verb">POST</td><td><code>_ai_explain</code></td><td><code>{ explanation: string, provider, model }</code></td></tr>
+    <tr><td><code>/api/agent/chat</code></td><td class="verb">POST</td><td><code>_chat</code></td><td><strong>SSE stream</strong> — tokens, plus <code>tool_call</code> events</td></tr>
+    <tr><td><code>/api/agent/thread/{id}</code></td><td class="verb">DELETE</td><td><code>_clear_chat</code></td><td><code>204</code></td></tr>
+    <tr><td><code>/api/reading-list</code></td><td class="verb">GET</td><td><code>_load_reading_list</code></td><td><code>Book[]</code> — no longer HTML</td></tr>
+    <tr><td><code>/api/reading-list</code></td><td class="verb">POST</td><td><code>_save_to_rl</code></td><td><code>{ added: boolean, count: number }</code></td></tr>
+    <tr><td><code>/api/reading-list/{id}</code></td><td class="verb">DELETE</td><td><code>_rl_remove</code></td><td><code>{ count: number }</code></td></tr>
+    <tr><td><code>/api/reading-list</code></td><td class="verb">DELETE</td><td><code>_rl_clear</code></td><td><code>204</code></td></tr>
+    <tr><td><code>/api/analytics</code></td><td class="verb">GET</td><td><code>_build_analytics</code></td><td><code>{ ratings: Bin[], categories: Bin[], years: Point[] }</code> — data, not PNGs</td></tr>
+    <tr><td><code>/api/export/pdf</code></td><td class="verb">POST</td><td><code>_export_results_pdf</code>, <code>_rl_export_pdf</code></td><td><code>application/pdf</code></td></tr>
+    <tr><td><code>/api/llm/providers</code></td><td class="verb">GET</td><td><code>_update_model_choices</code></td><td><code>{ provider: string, models: string[] }[]</code></td></tr>
+    <tr><td><code>/api/llm/connect</code></td><td class="verb">POST</td><td><code>_ai_connect</code></td><td><code>{ connected, provider, model, message }</code></td></tr>
+    <tr><td><code>/api/llm/status</code></td><td class="verb">GET</td><td><code>_initial_ai_status</code></td><td><code>{ connected, provider?, model?, capabilities }</code></td></tr>
+    <tr><td><code>/api/health</code></td><td class="verb">GET</td><td>—</td><td><code>{ indexReady, bookCount, agentReady }</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>The <code>trace</code> object is the differentiator</h3>
+<p>Right now the RAG pipeline's cleverness is invisible — a user searches and gets a list, with no evidence that HyDE ran, that three query variants were fused by RRF, or that a cross-encoder re-ordered the results. v3 returns a trace alongside every search:</p>
+
+<pre><b>type PipelineTrace = {</b>
+  originalQuery:   string
+  expandedQuery?:  string        <i>// llm.expand_query output</i>
+  hydeDocument?:   string        <i>// the hypothetical doc that got embedded</i>
+  queryVariants?:  string[]      <i>// the 3 multi-query rephrasings</i>
+  stages: Array&lt;{
+    name:      "bm25" | "faiss" | "graph" | "rrf" | "rerank"
+    candidates: number
+    durationMs: number
+    topShift?:  number           <i>// how far re-ranking moved things</i>
+  }&gt;
+  totalMs: number
+<b>}</b></pre>
+
+<p>The frontend renders this as a collapsible trace under the search bar. It costs one Pydantic model and one component, and it converts an invisible backend into the most demonstrable thing on the page.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="phases">
+<h2 class="head">06 — Phased build order</h2>
+
+<p>Ordered so that something works end-to-end as early as possible, and so the Gradio app keeps running until the replacement is proven. Each phase ends in a commit on <code>feature/v3-typescript-frontend</code>.</p>
+
+<article class="phase">
+  <header><span class="num">P0</span><span class="name">Extract the data layer</span><span class="cost"><span class="chip keep">Done</span></span></header>
+  <div class="body">
+    <p>Nothing new gets built until the backend stops emitting HTML. This is the highest-leverage half-day in the whole plan.</p>
+    <ul>
+      <li>Delete <code>BookRecommender._render_card</code>, <code>_render_section</code>, <code>format_books</code>; <code>recommend()</code> already returns dicts, so callers just stop wrapping them</li>
+      <li>Delete <code>ReadingList.to_html()</code>; keep <code>get_all()</code></li>
+      <li>Add a deterministic <code>id</code> field in <code>_normalise()</code></li>
+      <li>Rewrite <code>_build_analytics</code> to return series data; drop Matplotlib from <code>requirements.txt</code></li>
+      <li>Update the 81 existing tests to assert on dict shape rather than HTML substrings</li>
+    </ul>
+  </div>
+  <div class="ship"><b>Ship</b><span>Every core module returns JSON-serialisable data. Gradio still runs, now rendering client-side.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">P1</span><span class="name">FastAPI service</span><span class="cost"><span class="chip keep">Done</span></span></header>
+  <div class="body">
+    <ul>
+      <li>Restructure into <code>apps/api/</code> with <code>core/</code> holding the existing modules</li>
+      <li>Pydantic schemas for <code>Book</code>, <code>SearchRequest</code>, <code>SearchResponse</code>, <code>PipelineTrace</code>, <code>LLMStatus</code></li>
+      <li>Six routers implementing §05; singletons moved into a <code>lifespan</code> handler</li>
+      <li>CORS locked to the Vercel origin plus <code>localhost:3000</code></li>
+      <li><strong>Rate limit</strong> the LLM-touching routes — this will be public and keys are yours</li>
+      <li>Contract tests via <code>httpx.AsyncClient</code> against every route</li>
+    </ul>
+    <div class="note"><p><b>Checkpoint:</b> <code>/docs</code> renders the full OpenAPI spec and every endpoint is exercisable from the browser before a single line of TypeScript is written.</p></div>
+  </div>
+  <div class="ship"><b>Ship</b><span>A running, documented, tested JSON API.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">P2</span><span class="name">Frontend foundation</span><span class="cost">~1 day</span></header>
+  <div class="body">
+    <ul>
+      <li><code>create-next-app</code> with TypeScript, Tailwind v4, App Router, <code>strict: true</code></li>
+      <li>Brand tokens from §04 into <code>@theme</code>; <code>next-themes</code> for the toggle</li>
+      <li>shadcn/ui primitives: button, input, select, slider, switch, dialog, sheet, tabs, badge, skeleton, sonner</li>
+      <li><code>openapi-typescript</code> generating <code>lib/types.ts</code> from the live spec, wired into <code>pnpm gen:types</code></li>
+      <li>App shell: masthead with logo mark, nav, theme toggle, LLM status pill</li>
+    </ul>
+  </div>
+  <div class="ship"><b>Ship</b><span>Themed, typed, empty app that compiles clean and talks to the API.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">P3</span><span class="name">Discovery — the flagship screen</span><span class="cost">~2 days</span></header>
+  <div class="body">
+    <ul>
+      <li><code>&lt;SearchPanel /&gt;</code>: query, language, category, result counts, min rating, sort, scope, and the four RAG toggles (AI expand · HyDE · multi-query · re-rank)</li>
+      <li><code>&lt;BookCard /&gt;</code>: cover with skeleton and fallback, title, authors, star rating, source badge, similarity score in mono, save and detail actions</li>
+      <li>Results in two labelled groups — local library and external — with a responsive grid</li>
+      <li><code>&lt;PipelineTrace /&gt;</code>: collapsible stage-by-stage breakdown with timings</li>
+      <li>Real empty, loading, and error states; URL-synced search params so results are shareable</li>
+    </ul>
+  </div>
+  <div class="ship"><b>Ship</b><span>The screen most visitors will judge the project on.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">P4</span><span class="name">Streaming concierge</span><span class="cost">~1½ days</span></header>
+  <div class="body">
+    <ul>
+      <li>Convert <code>LibraryAgent.chat()</code> to an async generator over LangGraph's <code>astream_events</code></li>
+      <li>Emit typed SSE frames: <code>token</code>, <code>tool_call</code>, <code>tool_result</code>, <code>done</code>, <code>error</code></li>
+      <li><code>&lt;ChatStream /&gt;</code> renders tokens live and shows <em>which tool the agent chose</em> as an inline step — the visible payoff of using LangGraph</li>
+      <li>Thread persistence in <code>localStorage</code>; markdown rendering; stop and clear controls</li>
+    </ul>
+  </div>
+  <div class="ship"><b>Ship</b><span>A chat that streams and shows its reasoning steps.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">P5</span><span class="name">Catalogue, reading list, analytics, admin</span><span class="cost">~2 days</span></header>
+  <div class="body">
+    <ul>
+      <li><strong>Catalogue</strong> — virtualised paginated grid, debounced search, filter chips</li>
+      <li><strong>Book detail</strong> at <code>/book/[id]</code> — full description, metadata, similar books, save action. New capability; Gradio had no per-book URL</li>
+      <li><strong>Reading list</strong> — optimistic add/remove, PDF and CSV export</li>
+      <li><strong>Analytics</strong> — Recharts rating histogram, category bars, publication-year trend, all theme-aware</li>
+      <li><strong>Admin</strong> — add and remove books with proper form validation and index-rebuild feedback</li>
+    </ul>
+  </div>
+  <div class="ship"><b>Ship</b><span>Feature parity with v2, plus shareable book pages.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">P6</span><span class="name">Deploy, document, retire Gradio</span><span class="cost">~1 day</span></header>
+  <div class="body">
+    <ul>
+      <li>Dockerfile for the API, pushed to a Hugging Face Space</li>
+      <li>Vercel project for <code>apps/web</code>, env-wired to the Space</li>
+      <li>CI extended: <code>pytest</code> · <code>tsc --noEmit</code> · <code>eslint</code> · <code>next build</code></li>
+      <li>Delete <code>app.py</code>. Rewrite the README against the new architecture</li>
+      <li>Record a short screen capture for the README header</li>
+    </ul>
+  </div>
+  <div class="ship"><b>Ship</b><span>Two live URLs, green CI, and a README that opens with a demo.</span></div>
+</article>
+
+<div class="note">
+<p><b>Roughly nine to ten working days</b> at a steady pace. P0 and P1 are the load-bearing ones — if those are done properly, everything after is ordinary frontend work.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="screens">
+<h2 class="head">07 — Screen inventory</h2>
+
+<div class="scroller">
+<table>
+  <thead><tr><th>Route</th><th>From</th><th>What changes</th></tr></thead>
+  <tbody>
+    <tr><td><code>/</code> Discovery</td><td>Discovery tab</td><td>Sticky filter rail, responsive card grid, live pipeline trace, URL-synced state</td></tr>
+    <tr><td><code>/concierge</code></td><td>AI Concierge tab</td><td>Token streaming instead of a blocking call; visible tool-selection steps</td></tr>
+    <tr><td><code>/catalogue</code></td><td>Catalogue tab</td><td>Virtualised list, debounced search, filter chips instead of a page-number box</td></tr>
+    <tr><td><code>/book/[id]</code></td><td><span class="chip new">New</span></td><td>Shareable per-book page with similar-books rail — impossible in Gradio</td></tr>
+    <tr><td><code>/reading-list</code></td><td>Reading List tab</td><td>Optimistic updates, no full-page refetch on every mutation</td></tr>
+    <tr><td><code>/analytics</code></td><td>Analytics tab</td><td>Interactive charts with tooltips, replacing static server-rendered PNGs</td></tr>
+    <tr><td><code>/admin</code></td><td>Library Admin tab</td><td>Validated forms, clear index-rebuild progress</td></tr>
+    <tr><td><code>/how-it-works</code></td><td><span class="chip new">New</span></td><td>The explainer page — see below</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="deploy">
+<h2 class="head">08 — Deployment</h2>
+
+<div class="split">
+  <div class="card">
+    <h5>Frontend · Vercel</h5>
+    <p>Root <code>apps/web</code>. Push-to-deploy, preview URLs per branch, edge CDN, free tier. One env var: <code>NEXT_PUBLIC_API_URL</code>.</p>
+  </div>
+  <div class="card">
+    <h5>Backend · HF Spaces</h5>
+    <p>Docker Space on the free CPU tier. Models cached in the image layer. Secrets set in Space settings, never in git.</p>
+  </div>
+  <div class="card">
+    <h5>Cost</h5>
+    <p><span class="big">$0</span>per month, both tiers, indefinitely.</p>
+  </div>
+</div>
+
+<h4>The cold-start problem, and the fix</h4>
+<p>HF free Spaces sleep after inactivity. A cold boot loads <code>all-MiniLM-L6-v2</code>, builds the FAISS index over ~6,800 books, fits BM25, and constructs the NetworkX graph — call it 30–45 seconds. A recruiter will not wait that out.</p>
+<ul>
+  <li><strong>Pre-build the artifacts into the image.</strong> Commit or generate <code>book_index.faiss</code> and <code>books_metadata.pkl</code> at Docker build time rather than on boot. This is most of the win.</li>
+  <li><strong>Cache the knowledge graph</strong> — <code>hybrid_retriever.py</code> already has <code>_graph_cache_path()</code>; make sure it lands in the image.</li>
+  <li><strong>Pre-download the model</strong> in the Dockerfile so no HF fetch happens at runtime.</li>
+  <li><strong>Warm it from the frontend.</strong> Fire <code>/api/health</code> from the root layout on first paint, and show an honest "waking the retrieval engine" state instead of a spinner that looks broken.</li>
+  <li><strong>Optional:</strong> a GitHub Action pinging <code>/api/health</code> every 30 minutes keeps it warm for free.</li>
+</ul>
+
+<div class="crit">
+<p><strong>Do not ship your API keys to a public demo.</strong> The app supports five providers. For the public deployment, expose Groq (free tier, fast) as the default, rate-limit it per IP, and let visitors paste their own key for Claude or OpenAI. Never commit a key, and rotate anything that has ever been in <code>.env</code> before this repo goes fully public.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="showcase">
+<h2 class="head">09 — Making it reviewable</h2>
+
+<p>You want people to land on this and understand the system. That is a design problem, and it does not solve itself by having good code.</p>
+
+<h3>The <code>/how-it-works</code> page</h3>
+<p>You already have this content — it is spread across <code>docs/ARCHITECTURE_V2.md</code>, three standalone HTML files, and two PDFs. In v3 it becomes a page in the app, at a URL, with the real system running underneath it: an interactive walkthrough where a visitor types a query and watches HyDE generate a hypothetical document, sees the three query variants, sees BM25 and FAISS candidate sets side by side, and sees the cross-encoder reorder them. Same data as the trace component, presented pedagogically.</p>
+<p>This is the single highest-return thing on the list. It is the difference between "another book search app" and "someone who can explain retrieval architecture to a client."</p>
+
+<h3>README, rewritten</h3>
+<ol>
+  <li>A screen capture GIF above the fold, and the two live links</li>
+  <li>One paragraph on what it is, one on why the architecture is what it is</li>
+  <li>The architecture diagram — as an SVG, not ASCII art</li>
+  <li>A capability table with links into the source for each claim</li>
+  <li>Local setup that works from a clean clone in under five commands</li>
+</ol>
+
+<h3>Repository hygiene</h3>
+<ul>
+  <li>Move <code>INTERVIEW_PREP_ACCENTURE.md</code> and its PDF out of the public repo — they signal job-hunting rather than engineering</li>
+  <li>Same for the loose PDFs at root; link them from <code>docs/</code> if they stay</li>
+  <li>Delete <code>archive/</code>, or move it to a branch</li>
+  <li>Remove <code>API.txt</code> from the tree and confirm it was never committed with a real key</li>
+  <li>Add topics on GitHub: <code>rag</code>, <code>langgraph</code>, <code>faiss</code>, <code>nextjs</code>, <code>typescript</code>, <code>fastapi</code>, <code>hybrid-search</code></li>
+  <li>Set the repo description and homepage to the live URL</li>
+</ul>
+
+<div class="note">
+<p><b>Branch policy holds.</b> <code>main</code> stays as the original version. All of this lands on <code>feature/v3-typescript-frontend</code>, with a proper PR against <code>main</code> that stays open as a readable record of the migration — which is itself worth showing.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="risks">
+<h2 class="head">10 — Risks and mitigations</h2>
+
+<div class="scroller">
+<table>
+  <thead><tr><th>Risk</th><th>Why it bites</th><th>Mitigation</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Cold starts read as "broken"</strong></td>
+      <td>Free-tier sleep plus a 30s index build is the most likely reason a reviewer bounces</td>
+      <td>Bake artifacts into the image; warm on first paint; honest loading copy; optional keep-alive cron</td>
+    </tr>
+    <tr>
+      <td><strong>Public LLM key abuse</strong></td>
+      <td>An open endpoint calling Claude on your key is an uncapped bill</td>
+      <td>Groq free tier as public default, per-IP rate limit, bring-your-own-key for premium providers</td>
+    </tr>
+    <tr>
+      <td><strong>P0 scope creep</strong></td>
+      <td>Removing HTML rendering touches every test; it is tempting to "improve while in there"</td>
+      <td>P0 is deletion and shape-change only. No new features until P1 is green</td>
+    </tr>
+    <tr>
+      <td><strong>Type drift between API and web</strong></td>
+      <td>Hand-written TS interfaces silently diverge from Pydantic models</td>
+      <td>Generate <code>lib/types.ts</code> from OpenAPI; run <code>gen:types</code> in CI and fail on diff</td>
+    </tr>
+    <tr>
+      <td><strong>HF Spaces memory ceiling</strong></td>
+      <td>Free tier is 16&nbsp;GB but CPU-only; the cross-encoder plus MiniLM plus FAISS plus 6,800 rows is fine, a larger corpus may not be</td>
+      <td>Lazy-load the re-ranker (already the case), monitor at <code>/api/health</code>, cap corpus growth</td>
+    </tr>
+    <tr>
+      <td><strong>Losing working behaviour in translation</strong></td>
+      <td>Gradio handlers contain accumulated edge-case handling that is easy to drop</td>
+      <td>Keep <code>app.py</code> in the tree until P6; diff behaviour side-by-side before deleting it</td>
+    </tr>
+    <tr>
+      <td><strong>SSE through the Space proxy</strong></td>
+      <td>Streaming can buffer behind some proxy configurations</td>
+      <td>Disable response buffering explicitly; fall back to a non-streaming POST if the stream fails to open</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<footer>
+  Iqra Digital Library · v2 → v3 migration dossier · DiploTech Solutions
+</footer>
+
+</div>

@@ -1,0 +1,758 @@
+<title>Iqra RAG Scorecard</title>
+<style>
+
+/* ===================================================================
+   IQRA v3 — MIGRATION DOSSIER
+   Palette sampled from assets/Diplotech_Logo_2.png
+   #165491 diplomatic blue · #ED1C24 signal red · #231F20 ink
+   =================================================================== */
+
+:root {
+  --ground:        #FAFBFD;
+  --surface:       #FFFFFF;
+  --surface-sunk:  #F1F4F8;
+  --hairline:      #DCE3EC;
+  --hairline-soft: #EAEFF5;
+
+  --ink:           #12181F;
+  --ink-soft:      #3D4C5E;
+  --ink-mute:      #66788C;
+
+  --accent:        #165491;
+  --accent-deep:   #0F3D6B;
+  --accent-wash:   #E8F0F9;
+
+  --flag:          #C41219;   /* signal red, darkened for AA on white */
+  --flag-wash:     #FCEDEE;
+  --keep:          #14664A;
+  --keep-wash:     #E4F2EC;
+  --watch:         #8A5A05;
+  --watch-wash:    #FBF1DE;
+
+  --code-bg:       #F4F7FA;
+  --focus:         #165491;
+
+  --display: "Iowan Old Style", "Charter", "Palatino Linotype", Palatino, Georgia, serif;
+  --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", "Consolas", "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:        #0A0F16;
+    --surface:       #111925;
+    --surface-sunk:  #0D141E;
+    --hairline:      #22303F;
+    --hairline-soft: #1A2530;
+
+    --ink:           #E3EBF4;
+    --ink-soft:      #B3C2D2;
+    --ink-mute:      #7D91A6;
+
+    --accent:        #6BA5E4;
+    --accent-deep:   #A5C9F0;
+    --accent-wash:   #14263A;
+
+    --flag:          #F0787E;
+    --flag-wash:     #331519;
+    --keep:          #58C79C;
+    --keep-wash:     #0E2A21;
+    --watch:         #D9A94E;
+    --watch-wash:    #2B2210;
+
+    --code-bg:       #0D141E;
+    --focus:         #6BA5E4;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:        #0A0F16;
+  --surface:       #111925;
+  --surface-sunk:  #0D141E;
+  --hairline:      #22303F;
+  --hairline-soft: #1A2530;
+
+  --ink:           #E3EBF4;
+  --ink-soft:      #B3C2D2;
+  --ink-mute:      #7D91A6;
+
+  --accent:        #6BA5E4;
+  --accent-deep:   #A5C9F0;
+  --accent-wash:   #14263A;
+
+  --flag:          #F0787E;
+  --flag-wash:     #331519;
+  --keep:          #58C79C;
+  --keep-wash:     #0E2A21;
+  --watch:         #D9A94E;
+  --watch-wash:    #2B2210;
+
+  --code-bg:       #0D141E;
+  --focus:         #6BA5E4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16.5px;
+  line-height: 1.62;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.5rem 6rem;
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 3.5rem 0 1.5rem;
+  margin-bottom: 2.5rem;
+}
+.marque {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 1.6rem;
+}
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 15px; }
+.bars i { width: 4px; display: block; }
+.bars i:nth-child(1) { height: 9px;  background: #165491; }
+.bars i:nth-child(2) { height: 13px; background: var(--ink); }
+.bars i:nth-child(3) { height: 15px; background: #ED1C24; }
+
+.masthead h1 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 6vw, 3.9rem);
+  line-height: 1.04;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+  margin: 0 0 .9rem;
+}
+.standfirst {
+  font-size: 1.12rem;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 0 0 1.8rem;
+}
+.filed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.2rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--ink-mute);
+  letter-spacing: .04em;
+}
+.filed b { color: var(--ink-soft); font-weight: 500; }
+
+/* ---------- verdict ---------- */
+.verdict {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-top: 3px solid var(--accent);
+  padding: 1.7rem 1.8rem;
+  margin-bottom: 3rem;
+}
+.verdict h2 {
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 .9rem;
+  font-weight: 600;
+}
+.verdict p { margin: 0 0 .8rem; }
+.verdict p:last-child { margin-bottom: 0; }
+
+/* ---------- sections ---------- */
+section { margin-bottom: 3.4rem; scroll-margin-top: 1.5rem; }
+
+h2.head {
+  font-family: var(--display);
+  font-size: clamp(1.6rem, 3.4vw, 2.15rem);
+  font-weight: 600;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+  text-wrap: balance;
+  margin: 0 0 .5rem;
+  padding-bottom: .55rem;
+  border-bottom: 1px solid var(--hairline);
+}
+h3 {
+  font-family: var(--body);
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -.005em;
+  margin: 2rem 0 .55rem;
+}
+h4 {
+  font-family: var(--mono);
+  font-size: .73rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  margin: 1.7rem 0 .6rem;
+}
+p { margin: 0 0 1rem; max-width: 74ch; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; max-width: 74ch; }
+li { margin-bottom: .38rem; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+strong { font-weight: 650; }
+code {
+  font-family: var(--mono);
+  font-size: .855em;
+  background: var(--code-bg);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 3px;
+  padding: .08em .34em;
+}
+
+/* ---------- index ---------- */
+.index {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  padding: 1.4rem 1.6rem;
+  margin-bottom: 3.4rem;
+}
+.index ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  columns: 2;
+  column-gap: 2.5rem;
+  max-width: none;
+}
+.index li {
+  break-inside: avoid;
+  margin-bottom: .42rem;
+  display: flex;
+  gap: .7rem;
+  font-size: .93rem;
+}
+.index li span {
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--ink-mute);
+  padding-top: .18em;
+  min-width: 1.5rem;
+}
+@media (max-width: 620px) { .index ol { columns: 1; } }
+
+/* ---------- phase blocks ---------- */
+.phase {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  margin-bottom: 1.2rem;
+}
+.phase > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .5rem 1.1rem;
+  padding: 1rem 1.4rem;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--hairline);
+}
+.phase .num {
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--accent);
+}
+.phase .name {
+  font-family: var(--display);
+  font-size: 1.24rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  flex: 1 1 auto;
+}
+.phase .cost {
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.phase .body { padding: 1.3rem 1.4rem .4rem; }
+.phase .body > *:last-child { margin-bottom: 1rem; }
+.ship {
+  border-top: 1px dashed var(--hairline);
+  padding: .85rem 1.4rem;
+  font-size: .89rem;
+  color: var(--ink-soft);
+  display: flex;
+  gap: .7rem;
+  align-items: baseline;
+}
+.ship b {
+  font-family: var(--mono);
+  font-size: .69rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ---------- chips ---------- */
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: .16em .5em;
+  border-radius: 3px;
+  white-space: nowrap;
+  vertical-align: .05em;
+}
+.chip.keep  { color: var(--keep);  background: var(--keep-wash);  }
+.chip.cut   { color: var(--flag);  background: var(--flag-wash);  }
+.chip.new   { color: var(--accent);background: var(--accent-wash);}
+.chip.watch { color: var(--watch); background: var(--watch-wash); }
+
+/* ---------- tables ---------- */
+.scroller {
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  margin: 0 0 1.3rem;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-size: .89rem;
+}
+thead th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  padding: .7rem .95rem;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+tbody td {
+  padding: .62rem .95rem;
+  border-bottom: 1px solid var(--hairline-soft);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+td code { background: none; border: none; padding: 0; color: var(--ink-soft); }
+.num-col { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.verb {
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ---------- code / tree ---------- */
+pre {
+  font-family: var(--mono);
+  font-size: .795rem;
+  line-height: 1.62;
+  background: var(--code-bg);
+  border: 1px solid var(--hairline);
+  padding: 1.05rem 1.2rem;
+  overflow-x: auto;
+  margin: 0 0 1.3rem;
+  color: var(--ink-soft);
+  tab-size: 2;
+}
+pre b { color: var(--ink); font-weight: 600; }
+pre i { color: var(--ink-mute); font-style: normal; }
+pre u { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* ---------- callout ---------- */
+.note {
+  border-left: 3px solid var(--watch);
+  background: var(--watch-wash);
+  padding: .9rem 1.15rem;
+  margin: 0 0 1.3rem;
+  font-size: .93rem;
+}
+.note p { margin: 0; max-width: none; }
+.note p + p { margin-top: .6rem; }
+.note b { color: var(--ink); }
+
+.crit {
+  border-left: 3px solid var(--flag);
+  background: var(--flag-wash);
+  padding: .9rem 1.15rem;
+  margin: 0 0 1.3rem;
+  font-size: .93rem;
+}
+.crit p { margin: 0; max-width: none; }
+.crit p + p { margin-top: .6rem; }
+
+/* ---------- split ---------- */
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.3rem;
+}
+.card {
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  padding: 1.05rem 1.15rem;
+}
+.card h5 {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 600;
+  margin: 0 0 .55rem;
+}
+.card p { margin: 0; font-size: .92rem; max-width: none; }
+.card .big {
+  font-family: var(--display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  display: block;
+  margin-bottom: .3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- footer ---------- */
+footer {
+  border-top: 2px solid var(--ink);
+  padding-top: 1.3rem;
+  margin-top: 4rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--ink-mute);
+  letter-spacing: .03em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- scorecard additions ---------- */
+.grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem; height: 2rem;
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: .82rem;
+  font-weight: 700;
+  flex: none;
+}
+.grade.a { color: var(--keep);  background: var(--keep-wash);  }
+.grade.b { color: var(--accent); background: var(--accent-wash); }
+.grade.c { color: var(--watch); background: var(--watch-wash); }
+.grade.d { color: var(--flag);  background: var(--flag-wash);  }
+
+.qa { border-top: 1px solid var(--hairline-soft); padding: 1.2rem 0; }
+.qa:first-of-type { border-top: none; }
+.qa .q {
+  font-family: var(--display);
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin: 0 0 .6rem;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.qa .q::before {
+  content: "Q";
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .12em;
+  color: var(--accent);
+  vertical-align: .35em;
+  margin-right: .55rem;
+  font-weight: 700;
+}
+.qa .a { margin: 0; color: var(--ink-soft); }
+.qa .a + .a { margin-top: .7rem; }
+
+.metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--ink-mute);
+  margin-bottom: .3rem;
+}
+.bar {
+  flex: 1 1 auto;
+  height: 6px;
+  background: var(--surface-sunk);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 60px;
+}
+.bar i { display: block; height: 100%; background: var(--accent); }
+.bar i.good { background: var(--keep); }
+
+</style>
+
+<div class="wrap">
+
+<div class="masthead">
+  <div class="marque">
+    <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+    DiploTech Solutions &middot; Engineering
+  </div>
+  <h1>What your retrieval stack is actually worth</h1>
+  <p class="standfirst">An honest audit of the RAG techniques in Iqra Digital Library, benchmarked against the 2026 production standard &mdash; plus the three gaps a technical interviewer will find, and how to close them.</p>
+  <div class="filed">
+    <span><b>Audited</b> apps/api/core/</span>
+    <span><b>Against</b> 2026 hybrid-retrieval practice</span>
+    <span><b>Verdict</b> Strong core, missing evaluation</span>
+  </div>
+</div>
+
+<div class="verdict">
+  <h2>The short version</h2>
+  <p><strong>Your retrieval architecture is already at the 2026 production standard.</strong> Hybrid BM25 + dense with Reciprocal Rank Fusion at <code>k=60</code>, followed by cross-encoder re-ranking, is not a student-project pattern &mdash; it is precisely what the current benchmarking literature identifies as the correct default for production systems. You also have two things most portfolio RAG projects lack entirely: HyDE, and a knowledge-graph retrieval channel.</p>
+  <p><strong>The gap is not technique. It is evidence.</strong> There is no evaluation harness anywhere in the repository &mdash; no recall@k, no MRR, no NDCG, no golden query set. Every tuning decision in the codebase (the 40/60 BM25-to-FAISS weighting, <code>k=60</code> in RRF, fetching <code>k&nbsp;&times;&nbsp;4</code> candidates before re-ranking) is currently unjustified by measurement. A Senior Manager interview will find that in the first ten minutes, because <em>&ldquo;how do you know it&rsquo;s better?&rdquo;</em> is the question that separates someone who assembled a pipeline from someone who owns one.</p>
+  <p>Close that one gap and this project argues for you at the level you are targeting.</p>
+</div>
+
+<nav class="index" aria-label="Contents">
+  <ol>
+    <li><span>01</span><a href="#inventory">What you built &mdash; named correctly</a></li>
+    <li><span>02</span><a href="#scorecard">Scorecard vs the 2026 standard</a></li>
+    <li><span>03</span><a href="#gaps">The three real gaps</a></li>
+    <li><span>04</span><a href="#notbuild">What <em>not</em> to add</a></li>
+    <li><span>05</span><a href="#interview">Interview answers</a></li>
+  </ol>
+</nav>
+
+<section id="inventory">
+<h2 class="head">01 &mdash; What you built, named correctly</h2>
+
+<p>Use these names. Interviewers grade partly on whether you know the vocabulary for what you did, and several of these are described loosely in your current README.</p>
+
+<div class="scroller">
+<table>
+  <thead><tr><th>In your code</th><th>The technique&rsquo;s real name</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>hybrid_retriever.py</code><br><span class="chip new">40 / 60</span></td>
+      <td><strong>Sparse&ndash;dense hybrid retrieval with min-max score fusion</strong></td>
+      <td>BM25 catches exact terms, rare names, and identifiers that embeddings systematically miss; dense catches paraphrase and synonymy. Min-max normalising each score <em>per query</em> before the weighted sum is the correct detail &mdash; raw BM25 and cosine live on incomparable scales</td>
+    </tr>
+    <tr>
+      <td><code>_rrf_merge()</code><br><span class="chip new">k=60</span></td>
+      <td><strong>Reciprocal Rank Fusion</strong></td>
+      <td>Rank-based rather than score-based fusion, so it needs no calibration between retrievers. <code>k=60</code> is the canonical constant and remains the 2026 default</td>
+    </tr>
+    <tr>
+      <td><code>generate_hypothetical_doc()</code></td>
+      <td><strong>HyDE &mdash; Hypothetical Document Embeddings</strong></td>
+      <td>Closes the query&ndash;document asymmetry: a five-word query and a 200-word book description occupy different regions of embedding space. Generating an ideal fake document and embedding <em>that</em> puts the query vector in document space</td>
+    </tr>
+    <tr>
+      <td><code>generate_query_variants()</code></td>
+      <td><strong>Multi-query expansion with rank fusion</strong></td>
+      <td>Hedges against a single bad phrasing. Books surfacing across several variants get promoted by RRF &mdash; a cheap consensus signal</td>
+    </tr>
+    <tr>
+      <td><code>_get_reranker()</code><br><code>ms-marco-MiniLM-L-6-v2</code></td>
+      <td><strong>Cross-encoder re-ranking (late fusion)</strong></td>
+      <td>The highest-precision component you have. A bi-encoder scores query and document independently; a cross-encoder sees the pair jointly through full attention. Anthropic&rsquo;s published benchmarks put re-ranking as the step that takes contextual hybrid retrieval from a 2.9% to a 1.9% failure rate</td>
+    </tr>
+    <tr>
+      <td><code>_build_graph()</code><br><span class="chip new">NetworkX</span></td>
+      <td><strong>Graph-augmented retrieval</strong> (author / category edges)</td>
+      <td>A third retrieval channel most portfolio projects don&rsquo;t have. Your live index builds 6,810 nodes and 69,116 edges, traversing shared-author and shared-category links to surface candidates neither lexical nor vector search would reach</td>
+    </tr>
+    <tr>
+      <td><code>agent.py</code> + <code>agents/</code></td>
+      <td><strong>Agentic RAG &mdash; hierarchical ReAct orchestration</strong></td>
+      <td>An orchestrator delegating to a SearchWorker and a CuratorWorker is a supervisor pattern, not a single-agent tool loop. Retrieval becomes a decision the model makes rather than a fixed pre-step</td>
+    </tr>
+    <tr>
+      <td><code>llm_provider.py</code></td>
+      <td><strong>Provider abstraction with graceful degradation</strong></td>
+      <td>Five backends behind one interface, and &mdash; more importantly &mdash; every RAG stage falls back cleanly when the LLM is off or a package is missing. That is an operational instinct, and it is rarer in candidates than any single technique here</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+<p><b>The one-sentence version to have ready:</b> &ldquo;It&rsquo;s a three-channel hybrid retriever &mdash; BM25, dense vectors, and a knowledge graph &mdash; fused with Reciprocal Rank Fusion, optionally expanded with HyDE and multi-query, then re-ranked with a cross-encoder, behind a LangGraph supervisor agent that decides when to retrieve at all.&rdquo;</p>
+</div>
+</section>
+
+<section id="scorecard">
+<h2 class="head">02 &mdash; Scorecard vs the 2026 standard</h2>
+
+<div class="scroller">
+<table>
+  <thead><tr><th></th><th>Dimension</th><th>Your implementation</th><th>Against the standard</th></tr></thead>
+  <tbody>
+    <tr><td><span class="grade a">A</span></td><td><strong>Fusion strategy</strong></td><td>RRF at k=60, plus weighted min-max hybrid</td><td>Matches the documented production default exactly</td></tr>
+    <tr><td><span class="grade a">A</span></td><td><strong>Re-ranking</strong></td><td>Cross-encoder, lazy-loaded, degrades to hybrid order on failure</td><td>At standard; the degradation path is above it</td></tr>
+    <tr><td><span class="grade a">A</span></td><td><strong>Query expansion</strong></td><td>HyDE + multi-query, independently toggleable</td><td>Above standard &mdash; most systems ship one, not both</td></tr>
+    <tr><td><span class="grade b">B</span></td><td><strong>Retrieval channels</strong></td><td>Sparse + dense + graph</td><td>Above standard on breadth; the sparse channel could learn (see SPLADE)</td></tr>
+    <tr><td><span class="grade b">B</span></td><td><strong>Agentic layer</strong></td><td>LangGraph supervisor, two workers, MemorySaver threads</td><td>At standard. Missing: self-correction on poor retrieval</td></tr>
+    <tr><td><span class="grade c">C</span></td><td><strong>Embedding model</strong></td><td><code>all-MiniLM-L6-v2</code>, 384-dim</td><td>Below. Fast and free, but a 2021 model &mdash; it sets the ceiling for everything downstream</td></tr>
+    <tr><td><span class="grade d">D</span></td><td><strong>Evaluation</strong></td><td>None</td><td>Well below. This is the gap that matters</td></tr>
+    <tr><td><span class="grade d">D</span></td><td><strong>Observability</strong></td><td>Logging only &mdash; no latency or quality metrics retained</td><td>Below, though the new v3 pipeline trace is the first half of the fix</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Read that honestly: six of eight dimensions sit at or above the current production bar. Both failing grades are about <em>measurement</em>, not retrieval technique &mdash; and that is a far easier thing to fix than an architecture problem.</p>
+</section>
+
+<section id="gaps">
+<h2 class="head">03 &mdash; The three real gaps</h2>
+
+<article class="phase">
+  <header><span class="num">G1</span><span class="name">No evaluation harness</span><span class="cost">Highest priority</span></header>
+  <div class="body">
+    <p>Nothing in the repository measures retrieval quality. That means every constant in the system is currently a guess:</p>
+    <ul>
+      <li><code>0.40</code> / <code>0.60</code> BM25-to-FAISS weighting in <code>hybrid_retriever.py</code></li>
+      <li><code>_RRF_K = 60</code> &mdash; correct by convention, but unverified <em>on your corpus</em></li>
+      <li><code>fetch_k = k * 4</code> before re-ranking</li>
+      <li>Three query variants rather than five</li>
+    </ul>
+    <p>Each is defensible. None is currently defended. Build a golden set of 50&ndash;100 queries with known-relevant books, then report <strong>recall@10</strong>, <strong>MRR</strong>, and <strong>NDCG@10</strong> for each configuration: BM25 alone, dense alone, hybrid, hybrid + HyDE, hybrid + re-rank, and everything on.</p>
+    <p>The output is an ablation table. That single table changes the conversation from &ldquo;I implemented these techniques&rdquo; to &ldquo;re-ranking bought 14 points of NDCG and cost 180&nbsp;ms; HyDE bought 3 points and cost 900&nbsp;ms, so it ships off by default.&rdquo; The second sentence is a Senior Manager answer. The first is not.</p>
+  </div>
+  <div class="ship"><b>Effort</b><span>One to two days, and the single best return in this document.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">G2</span><span class="name">Dated embedding model</span><span class="cost">Medium priority</span></header>
+  <div class="body">
+    <p><code>all-MiniLM-L6-v2</code> is 384-dimensional and from 2021. Everything downstream &mdash; fusion, re-ranking, the graph &mdash; is bounded by what this model retrieves in the first place.</p>
+    <p>Swap in <code>BAAI/bge-base-en-v1.5</code> or <code>intfloat/e5-base-v2</code> (both 768-dim, both free, both CPU-viable). Keep MiniLM behind a config flag and <em>report both in the ablation table</em> &mdash; &ldquo;I upgraded the encoder and measured the delta&rdquo; is a stronger story than having quietly used the better model from the start.</p>
+    <div class="note"><p><b>Deployment caveat:</b> 768 dimensions doubles index size and cold-start embedding time. Your measured cold build is already ~120&nbsp;s locally; on the Hugging Face free tier, measure before committing. This may end up local-only with MiniLM in production &mdash; which is itself a legitimate trade-off to talk about.</p></div>
+  </div>
+  <div class="ship"><b>Effort</b><span>Half a day, plus a full index rebuild.</span></div>
+</article>
+
+<article class="phase">
+  <header><span class="num">G3</span><span class="name">No corrective / self-checking loop</span><span class="cost">Optional</span></header>
+  <div class="body">
+    <p>The pipeline is strictly feed-forward: retrieve, fuse, re-rank, answer. It never asks whether the retrieval was any good. Corrective RAG grades retrieved candidates for relevance and, when confidence is low, falls back to a different strategy &mdash; a rewritten query, or the external Google Books channel you already have.</p>
+    <p>You are unusually well positioned for this: the cross-encoder already produces a calibrated relevance score. If the top score falls below a threshold, re-route. That is roughly thirty lines in <code>rag_pipeline.py</code>, and it upgrades the description from &ldquo;agentic RAG&rdquo; to &ldquo;agentic RAG with a corrective fallback.&rdquo;</p>
+  </div>
+  <div class="ship"><b>Effort</b><span>Half a day. Do it after G1 &mdash; you need the harness to prove it helps.</span></div>
+</article>
+</section>
+
+<section id="notbuild">
+<h2 class="head">04 &mdash; What <em>not</em> to add</h2>
+
+<p>Knowing what to leave out is itself an interview signal. Three techniques you will be tempted toward that are wrong for this corpus:</p>
+
+<div class="split">
+  <div class="card">
+    <h5>Contextual Retrieval</h5>
+    <p>Anthropic&rsquo;s method cuts retrieval failures 49% by prepending LLM-generated document context to each chunk before indexing. It is the strongest recent result in RAG &mdash; and it does not apply here. It solves <em>chunks losing the context of their parent document</em>. Your corpus is ~6,800 atomic book records; there is no parent document and no chunking. Say exactly this if asked. Recognising when a celebrated technique doesn&rsquo;t fit is worth more than bolting it on.</p>
+  </div>
+  <div class="card">
+    <h5>Chunking strategies</h5>
+    <p>Semantic chunking, sliding windows, small-to-big &mdash; all irrelevant for the same reason. A title plus a short description is already the right retrieval unit. Do not invent a chunking problem in order to demonstrate a chunking solution.</p>
+  </div>
+  <div class="card">
+    <h5>A managed vector database</h5>
+    <p>Pinecone, Weaviate, and Qdrant earn their keep at millions of vectors with concurrent writes. At 6,810 records, FAISS <code>IndexFlatIP</code> does <em>exact</em> search in single-digit milliseconds &mdash; your live API returns a full hybrid query in 71&nbsp;ms. Migrating would add cost and a network hop to buy nothing.</p>
+  </div>
+</div>
+
+<h3>The one genuine upgrade to your sparse channel</h3>
+<p>If you want a fourth retrieval channel with real benchmark support, it is <strong>SPLADE</strong> &mdash; a learned sparse retriever that expands documents with semantically related terms while keeping an invertible, BM25-like index. Three-way hybrid (dense + BM25 + SPLADE) with a late-interaction re-ranker is the strongest documented configuration in current blended-retrieval benchmarks. It is real work, and it belongs after G1, not before.</p>
+
+<h3>And the one worth knowing about but not building</h3>
+<p><strong>ColBERT</strong> and late-interaction retrieval sit between bi-encoders and cross-encoders: per-token embeddings scored by MaxSim, giving near cross-encoder accuracy at near bi-encoder speed. Worth being able to describe &mdash; &ldquo;I&rsquo;d reach for late interaction if my re-ranking latency budget got tight at scale&rdquo; &mdash; but at 6,810 documents your cross-encoder is already affordable, so adopting it would be solving a problem you don&rsquo;t have.</p>
+</section>
+
+<section id="interview">
+<h2 class="head">05 &mdash; Interview answers</h2>
+
+<p>The questions this project invites, and answers that hold up under follow-up.</p>
+
+<div class="qa">
+  <p class="q">Why hybrid search instead of pure vector search?</p>
+  <p class="a">Because they fail differently. Dense retrieval handles paraphrase and synonymy but is unreliable on exact tokens &mdash; a specific author name, an ISBN, an unusual title. BM25 is the opposite. The benchmarking work through 2025 and 2026 consistently finds BM25 beating strong commercial embedding models on most metrics, which surprises people; the practical conclusion isn&rsquo;t to pick one, it&rsquo;s to fuse them. I weight 40% BM25 to 60% dense, min-max normalised per query so the scales are comparable.</p>
+  <p class="a"><em>If pressed on the weights:</em> be honest &mdash; &ldquo;that was a starting point; an ablation harness is how I&rsquo;d tune it, and it&rsquo;s the next thing I&rsquo;d build.&rdquo; Admitting an unmeasured constant lands far better than defending it.</p>
+</div>
+
+<div class="qa">
+  <p class="q">Why RRF rather than just averaging the scores?</p>
+  <p class="a">Because scores from different retrievers aren&rsquo;t comparable, and their distributions shift per query. RRF ignores magnitudes and uses rank position &mdash; one over rank plus 60 &mdash; so it needs no calibration between systems. The constant dampens differences at the top of each list, which stops one retriever&rsquo;s confident-but-wrong top hit from dominating the merge. I use both methods: weighted min-max fusion inside the hybrid retriever where I control both scorers, and RRF across query variants where I don&rsquo;t.</p>
+</div>
+
+<div class="qa">
+  <p class="q">What does the cross-encoder actually do that the embeddings don&rsquo;t?</p>
+  <p class="a">Bi-encoders embed the query and the document separately, so the two never interact until a dot product at the very end &mdash; that&rsquo;s what makes them cheap enough to index a whole corpus. A cross-encoder concatenates the pair and runs full attention across both, so it models term-level interaction directly. Much more accurate, far too slow to run over everything &mdash; so it only ever sees the top candidates from the cheap stage. Retrieve broad and cheap, then re-rank narrow and expensive.</p>
+</div>
+
+<div class="qa">
+  <p class="q">Why HyDE? Isn&rsquo;t generating a fake document strange?</p>
+  <p class="a">It addresses a real asymmetry. A user types five words; the indexed documents are a couple of hundred. Those occupy different regions of embedding space, so cosine similarity between them is measuring across a gap. HyDE has the LLM write what an ideal matching document would look like and embeds <em>that</em> instead, so I&rsquo;m comparing document to document. The factual accuracy of the generated text doesn&rsquo;t matter &mdash; it never reaches the user. It only has to land in the right neighbourhood.</p>
+  <p class="a"><em>The mature addition:</em> it costs an LLM round trip per search, so it&rsquo;s off by default and user-toggleable.</p>
+</div>
+
+<div class="qa">
+  <p class="q">How do you know any of this actually improved results?</p>
+  <p class="a">This is the one to prepare for hardest, and the honest answer today is that I have architectural justification but not measurement &mdash; which is exactly why an ablation harness is the next thing I&rsquo;d build. <strong>Build G1 first and you answer this with numbers instead.</strong> Until then, state plainly what is designed and what is measured; a candidate who distinguishes the two is trusted more than one who blurs them.</p>
+</div>
+
+<div class="qa">
+  <p class="q">Why keep Python for retrieval instead of rewriting everything in TypeScript?</p>
+  <p class="a">Because FAISS, the sentence-transformers cross-encoder, and LangGraph have no equivalent in the JavaScript ecosystem. Rewriting would have meant swapping exact vector search for an approximate JS library, dropping cross-encoder re-ranking entirely, and rebuilding the agent with fewer capabilities &mdash; losing the parts that make the system interesting, in order to buy a uniform language. So I split it: Python owns retrieval and reasoning, TypeScript owns the interface, and a typed OpenAPI contract joins them so the two can&rsquo;t drift. That&rsquo;s also how production AI systems are actually organised.</p>
+</div>
+
+<div class="qa">
+  <p class="q">What breaks if the corpus goes from 7,000 books to 7 million?</p>
+  <p class="a">Four things change. FAISS <code>IndexFlatIP</code> is exact brute force &mdash; fine in memory at this size, untenable at millions, so I&rsquo;d move to an approximate index, IVF-PQ or HNSW, and accept a recall trade-off I&rsquo;d measure. The in-memory BM25 would move to a real inverted index. The NetworkX graph is O(V+E) in RAM &mdash; mine is already 69,000 edges at 6,810 books &mdash; so it needs a graph store or gets dropped. And the cross-encoder stops being free; I&rsquo;d cap the candidate set and batch on GPU. The architecture survives. Three of the four implementations don&rsquo;t.</p>
+</div>
+
+<div class="qa">
+  <p class="q">Where does this break in production?</p>
+  <p class="a">Cold start is the honest answer. Loading the encoder, building the FAISS index, fitting BM25, and constructing the graph takes about two minutes from cold locally, which is why the v3 build bakes those artifacts into the container image rather than computing them at boot. Beyond that: the cross-encoder is the latency floor on any re-ranked query; external book APIs fail independently and are wrapped so an outage degrades the result set rather than failing the request; and the public LLM endpoints are rate-limited per IP because the keys are mine.</p>
+</div>
+</section>
+
+<footer>
+  Iqra Digital Library &middot; RAG capability assessment &middot; DiploTech Solutions
+</footer>
+
+</div>

@@ -9,14 +9,15 @@
 #   3. Searches Google Books API (paginated; re-ranked by cosine sim)
 #   4. Filters by language / min-rating
 #   5. Sorts by rating / similarity / year
-#   6. Renders results as styled HTML book cards
+#   6. Returns plain dicts matching the canonical Book schema
 #
-# The recommender is read-only — it never modifies the index.
+# The recommender is read-only — it never modifies the index, and it never
+# renders markup.  Presentation is entirely the frontend's concern.
 # =============================================================================
 
 from __future__ import annotations
 
-import html as html_mod
+import hashlib
 import logging
 import pickle
 from typing import Any
@@ -27,7 +28,7 @@ import requests
 import torch
 from sentence_transformers import SentenceTransformer
 
-from config import settings
+from .config import settings
 
 # ---------------------------------------------------------------------------
 # Module logger
@@ -71,13 +72,18 @@ def _safe_int(val: Any, default: int = 0) -> int:
         return default
 
 
-def _stars(rating: float) -> str:
-    """Render a rating as Unicode stars, e.g. 3.5 → '★★★½☆ 3.5'."""
-    full  = int(rating)
-    half  = 1 if (rating - full) >= 0.5 else 0
-    empty = 5 - full - half
-    glyph = "★" * full + ("½" if half else "") + "☆" * empty
-    return glyph
+def book_id(title: str, authors: str) -> str:
+    """
+    Deterministic, URL-safe identifier for a book.
+
+    Derived from title + first author so the same book always resolves to the
+    same id across the local index, Google Books, and OpenLibrary.  This is what
+    the frontend routes on (/book/[id]) and keys React lists by; matching on the
+    raw title string breaks on duplicates and on punctuation.
+    """
+    first_author = (authors or "").split(",")[0].strip().lower()
+    seed = f"{(title or '').strip().lower()}::{first_author}"
+    return hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16]
 
 
 def _clean(value: Any) -> str:
@@ -161,9 +167,13 @@ class BookRecommender:
             or ""
         ).strip()
 
+        title_val   = _clean(raw.get("title"))   or "Unknown Title"
+        authors_val = _clean(authors)            or "Unknown Author"
+
         return {
-            "title":          _clean(raw.get("title"))          or "Unknown Title",
-            "authors":        _clean(authors)                   or "Unknown Author",
+            "id":             book_id(title_val, authors_val),
+            "title":          title_val,
+            "authors":        authors_val,
             "subtitle":       _clean(raw.get("subtitle")),
             "description":    _clean(raw.get("description")),
             "thumbnail":      thumbnail,
@@ -396,125 +406,3 @@ class BookRecommender:
         local_results    = sorted(local_results,    key=_sort_key, reverse=True)
         external_results = sorted(external_results, key=_sort_key, reverse=True)
         return local_results, external_results
-
-    # ── Card & HTML rendering ─────────────────────────────────────────────
-    def _render_card(self, book: dict[str, Any]) -> str:
-        """Render one book as a styled HTML card."""
-        rating  = book["average_rating"]
-        r_count = book["ratings_count"]
-        stars   = _stars(rating)
-
-        title   = html_mod.escape(book["title"])
-        authors = html_mod.escape(book["authors"])
-        source  = html_mod.escape(book["source"])
-
-        # Optional badges — num_pages and published_year are numeric, safe to cast
-        badges = ""
-        if book.get("num_pages"):
-            badges += f'<span class="badge">{int(book["num_pages"])} pp</span>'
-        if book.get("published_year"):
-            badges += f'<span class="badge">{html_mod.escape(str(book["published_year"]))}</span>'
-
-        # Truncate description at 180 chars; escape after truncation
-        desc_raw   = book["description"]
-        desc_short = (desc_raw[:180] + "…") if len(desc_raw) > 180 else desc_raw
-        desc_safe  = html_mod.escape(desc_short)
-
-        # Thumbnail — already validated to start with http(s) in _normalise
-        thumb    = html_mod.escape(book["thumbnail"])
-        info_link = html_mod.escape(book["info_link"])
-
-        signal = f"Match score {book['similarity']:.2f}" if book.get("similarity") else "Curated discovery"
-
-        return f"""
-<div class="book-card">
-  <div class="book-cover-wrap">
-    <img class="book-cover"
-         src="{thumb}"
-         alt="{title}"
-         loading="lazy"
-         onerror="this.src='{_PLACEHOLDER_COVER}'"/>
-    <span class="src-badge">{source}</span>
-  </div>
-  <div class="book-info">
-    <div class="book-head">
-      <div>
-        <h3 class="book-title">{title}</h3>
-        <p class="book-author">{authors}</p>
-      </div>
-      <div class="book-score">{rating:.1f}</div>
-    </div>
-    <div class="book-meta">
-      <span class="stars" title="{rating:.1f} / 5">{stars}</span>
-      <span class="subtle">{r_count:,} ratings</span>
-      {badges}
-    </div>
-    <p class="book-desc">{desc_safe or '<em>No description available.</em>'}</p>
-    <div class="book-footer">
-      <span class="book-signal">{html_mod.escape(signal)}</span>
-      <a class="more-link"
-         href="{info_link}"
-         target="_blank"
-         rel="noopener noreferrer">Open record</a>
-    </div>
-  </div>
-</div>"""
-
-    def _render_section(
-        self, title: str, icon: str, books: list[dict[str, Any]]
-    ) -> str:
-        """Render a labelled section header + cards grid."""
-        count = len(books)
-        header = f"""
-<div class="section-header">
-  <div class="section-heading">
-    <span class="section-icon">{icon}</span>
-    <h2 class="section-title">{title}</h2>
-  </div>
-  <span class="section-count">{count} result{"s" if count != 1 else ""}</span>
-</div>"""
-        if not books:
-            body = (
-                '<div class="empty-state">'
-                "<h3>No results found</h3>"
-                "<p>Try different keywords, broaden your filters, or switch the search scope.</p>"
-                "</div>"
-            )
-        else:
-            cards = "\n".join(self._render_card(b) for b in books)
-            body  = f'<div class="cards-grid">{cards}</div>'
-        return header + body
-
-    def format_books(
-        self,
-        local_results:    list[dict[str, Any]],
-        external_results: list[dict[str, Any]],
-    ) -> str:
-        """
-        Combine local and external results into a single HTML string.
-        This is the value returned to gr.HTML() in the Gradio UI.
-        """
-        total = len(local_results) + len(external_results)
-        overview = f"""
-<div class="results-overview">
-  <div class="results-kpi">
-    <span class="results-kpi-value">{total}</span>
-    <span class="results-kpi-label">Total matches</span>
-  </div>
-  <div class="results-kpi">
-    <span class="results-kpi-value">{len(local_results)}</span>
-    <span class="results-kpi-label">Local library</span>
-  </div>
-  <div class="results-kpi">
-    <span class="results-kpi-value">{len(external_results)}</span>
-    <span class="results-kpi-label">External sources</span>
-  </div>
-</div>"""
-
-        return (
-            '<div class="results-root">'
-            + overview
-            + self._render_section("Local Collection", "L", local_results)
-            + self._render_section("External Discovery", "E", external_results)
-            + "</div>"
-        )

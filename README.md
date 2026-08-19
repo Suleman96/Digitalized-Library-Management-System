@@ -1,401 +1,209 @@
-# Iqra Digital Library — v2
+# Iqra Digital Library
 
 > **مكتبة إقرأ الرقمية**
-> Production-grade RAG-powered digital library with advanced semantic search, multi-provider AI, and a LangGraph conversational agent.
+> Hybrid-retrieval book discovery: BM25 + dense vectors + a knowledge graph, an advanced RAG pipeline, and a LangGraph concierge agent — behind a typed HTTP API.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
-![Gradio](https://img.shields.io/badge/Gradio-4.x-FF7C00)
-![FAISS](https://img.shields.io/badge/FAISS-CPU-F59E0B)
-![Tests](https://img.shields.io/badge/Tests-81%20passing-22C55E)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![FAISS](https://img.shields.io/badge/FAISS-IndexFlatIP-F59E0B)
+![LangGraph](https://img.shields.io/badge/LangGraph-ReAct-1C3C3C)
+![Tests](https://img.shields.io/badge/Tests-110%20passing-22C55E)
 ![License](https://img.shields.io/badge/License-MIT-6366F1)
+
+---
+
+## What this is
+
+A book discovery system over ~6,800 titles that combines three independent retrieval channels and layers optional LLM-driven query expansion and re-ranking on top. It is built to demonstrate production RAG architecture, not to be a toy semantic search demo.
+
+**Measured on the live API** (6,810 books, local CPU):
+
+| | |
+| --- | --- |
+| Hybrid query latency | **71 ms** (BM25 + FAISS + graph) |
+| Knowledge graph | **6,810** nodes, **69,116** edges |
+| Vector index | FAISS `IndexFlatIP`, 384-dim, exact search |
+| Cold engine build | ~120 s (pre-baked into the container image for deploys) |
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  apps/web/          Next.js 15 · TypeScript · Tailwind       │
+│                     types generated from the OpenAPI schema   │
+└───────────────────────────┬──────────────────────────────────┘
+                            │  JSON / SSE
+┌───────────────────────────▼──────────────────────────────────┐
+│  apps/api/          FastAPI — routers, Pydantic schemas       │
+│    routers/         search · books · reading-list ·           │
+│                     analytics · agent · llm                   │
+│    deps.py          engine lifecycle (lifespan singletons)    │
+│    schemas.py       the contract — OpenAPI source of truth    │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+┌───────────────────────────▼──────────────────────────────────┐
+│  apps/api/core/     framework-agnostic retrieval engine       │
+│                                                               │
+│    hybrid_retriever  BM25 (40%) + FAISS (60%) + NetworkX KG   │
+│    rag_pipeline      HyDE · multi-query RRF · cross-encoder   │
+│    agent + agents/   LangGraph supervisor → Search / Curator  │
+│    llm_provider      Claude · OpenAI · Gemini · Groq · Ollama │
+│    recommender       Google Books + OpenLibrary clients       │
+│    manager           CSV ↔ FAISS lifecycle                    │
+│    analytics         catalogue statistics as series data      │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The `core/` package knows nothing about HTTP. The routers are the only framework-aware layer, and the engine returns plain Python values — never rendered markup.
+
+---
+
+## The retrieval pipeline
+
+```
+query
+  │
+  ├─ [expand]   AI query expansion            (optional, LLM)
+  ├─ [expand]   HyDE — hypothetical doc       (optional, LLM)
+  ├─ [expand]   multi-query — 3 variants      (optional, LLM)
+  │
+  ├─ [retrieve] BM25Okapi        ─┐
+  │             FAISS cosine      ├─ min-max fusion → 40/60 weighted
+  │             knowledge graph  ─┘
+  │
+  ├─ [fuse]     Reciprocal Rank Fusion, k=60  (when >1 query)
+  │
+  └─ [rerank]   cross-encoder/ms-marco-MiniLM-L-6-v2  (optional)
+```
+
+Every stage degrades gracefully: if the LLM is off or a package is missing, the pipeline falls back to plain hybrid search rather than raising. Each search returns a **`trace`** object recording which stages ran, how many candidates each saw, and how long each took.
+
+For a full assessment of these techniques against current practice, see **[docs/rag-assessment.html](./docs/rag-assessment.html)**.
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/Suleman96/Digitalized-Library-Management-System.git
+cd Digitalized-Library-Management-System
+
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # macOS / Linux
+
+pip install -r requirements.txt
+cp .env.example .env          # optional — all keys are optional
+
+uvicorn apps.api.main:app --reload --port 8000
+```
+
+- **API docs** → <http://localhost:8000/docs>
+- **Health** → <http://localhost:8000/api/health>
+- **OpenAPI schema** → <http://localhost:8000/openapi.json>
+
+The first boot builds the FAISS index and knowledge graph (~2 minutes) and caches both to `artifacts/`. Subsequent boots load from cache.
+
+---
+
+## API
+
+| Route | | Returns |
+| --- | --- | --- |
+| `/api/search` | `POST` | `{ local, external, trace, expandedQuery }` |
+| `/api/books` | `GET` | Paginated catalogue with filters |
+| `/api/books` | `POST` | Add a book; rebuilds the index |
+| `/api/books/{id}` | `GET` | One book by deterministic id |
+| `/api/books/{id}` | `DELETE` | Remove a book; rebuilds the index |
+| `/api/books/{id}/similar` | `GET` | Semantically closest titles |
+| `/api/explain` | `POST` | LLM explanation of why a book matched |
+| `/api/agent/chat` | `POST` | **SSE stream** — `token`, `tool_call`, `tool_result`, `done` |
+| `/api/agent/thread/{id}` | `DELETE` | Drop a conversation thread |
+| `/api/reading-list` | `GET` `POST` `DELETE` | Saved books |
+| `/api/reading-list/{id}` | `DELETE` | Remove one saved book |
+| `/api/reading-list/export` | `POST` | PDF download |
+| `/api/analytics` | `GET` | Rating, category, and year series |
+| `/api/llm/providers` | `GET` | Providers, models, key availability |
+| `/api/llm/connect` | `POST` | Connect a provider (supports bring-your-own-key) |
+| `/api/llm/status` | `GET` | Connection state and capabilities |
+| `/api/health` | `GET` | Readiness, book count, version |
+
+Books carry a deterministic `id` — `sha1(title::first_author)[:16]` — so the frontend can route to `/book/[id]` and key lists safely.
+
+---
+
+## AI providers
+
+All optional. Without one, hybrid retrieval, browsing, analytics, and the reading list all work fully; only HyDE, multi-query, query expansion, explanations, and the concierge agent require a connected provider.
+
+| Provider | Key | Notes |
+| --- | --- | --- |
+| **Groq** | `GROQ_API_KEY` | Free tier, fastest — the recommended public default |
+| **Claude** | `ANTHROPIC_API_KEY` | Best reasoning for the agent |
+| **OpenAI** | `OPENAI_API_KEY` | |
+| **Gemini** | `GEMINI_API_KEY` | |
+| **Ollama** | *none* | Fully local and free — `ollama pull llama3.2` |
+
+Set `LLM_PROVIDER` and `LLM_MODEL` to auto-connect at boot.
+
+---
+
+## Testing
+
+```bash
+pytest tests/ -v
+pytest tests/ --cov=apps --cov-report=term-missing
+```
+
+| Module | Tests | Covers |
+| --- | --- | --- |
+| `test_api_contract.py` | 22 | Every route's response shape; OpenAPI generation |
+| `test_rag_pipeline.py` | 31 | HyDE, multi-query, RRF, re-ranking, trace, degradation |
+| `test_manager.py` | 18 | CSV CRUD, FAISS rebuild |
+| `test_hybrid_retriever.py` | 18 | Fusion, graph, fallbacks |
+| `test_recommender.py` | 13 | Normalisation, stable ids, external clients |
+| `test_config.py` | 8 | Settings and env resolution |
+| **Total** | **110** | |
+
+Contract tests run against a stubbed engine — no model loading, no network, no FAISS index.
 
 ---
 
 ## Documentation
 
-| Document | Description |
-| -------- | ----------- |
-| [docs/system-architecture.html](./docs/system-architecture.html) | System architecture — v1 and v2 with data-flow diagrams |
-| [docs/design-decisions.html](./docs/design-decisions.html) | Every design decision: rationale, alternatives, trade-offs |
-| [docs/business-impact.html](./docs/business-impact.html) | Business case, cost analysis, ROI, competitive positioning |
+| Document | |
+| --- | --- |
+| [docs/rag-assessment.html](./docs/rag-assessment.html) | RAG techniques audited against current practice, with gaps and trade-offs |
+| [docs/migration-v3.html](./docs/migration-v3.html) | The v2 → v3 migration plan and its rationale |
+| [docs/system-architecture.html](./docs/system-architecture.html) | System architecture with data-flow diagrams |
+| [docs/design-decisions.html](./docs/design-decisions.html) | Design decisions: rationale, alternatives, trade-offs |
+| [docs/business-impact.html](./docs/business-impact.html) | Business case and cost analysis |
 
 ---
 
-## What's New in v2
+## Project layout
 
-| Area | v1 | v2 |
-| ---- | -- | -- |
-| **Search** | FAISS cosine only | Hybrid BM25 (40%) + FAISS (60%) with min-max fusion |
-| **RAG pipeline** | None | HyDE · Multi-query + RRF · Cross-encoder re-ranking |
-| **AI providers** | None | Claude · OpenAI · Gemini · Ollama (free, local) |
-| **Agent** | None | LangGraph ReAct agent with 5 tools + conversation memory |
-| **Reading list** | None | Per-session save / remove / export |
-| **Analytics** | None | Search history, export to PDF / CSV / JSON |
-| **Tests** | 56 | 81 (25 new RAG pipeline tests) |
-
----
-
-## Features
-
-| Feature | Description |
-| ------- | ----------- |
-| **Hybrid Search** | BM25 keyword + FAISS semantic, fused with weighted min-max normalisation |
-| **HyDE** | LLM generates a hypothetical ideal book description; that text is embedded as the FAISS query vector |
-| **Multi-Query RAG** | LLM produces 3 query variants; results merged via Reciprocal Rank Fusion (RRF) |
-| **Cross-Encoder Re-ranking** | `ms-marco-MiniLM-L-6-v2` scores (query, book) pairs jointly for highest precision |
-| **Google Books** | Simultaneous external search with semantic re-ranking |
-| **Multi-Provider LLM** | Switch between Claude, OpenAI, Gemini, or local Ollama models at runtime |
-| **LangGraph Agent** | Conversational assistant with search, recommend, reading-list, and explain tools |
-| **Reading List** | Save books to a per-session list; export to PDF, CSV, or JSON |
-| **Analytics** | Searchable history with one-click export |
-| **Library Management** | Add / remove books; CSV and FAISS index updated atomically |
-| **Browse & Filter** | Paginated catalogue with language, rating, and text filters |
-
----
-
-## Project Structure
-
-```text
-Digitalized-Library-Management-System/
-│
-├── app.py                 ← Gradio UI entry point (5 tabs)
-├── config.py              ← Settings dataclass, env var loading
-├── manager.py             ← DynamicBookManager: CSV ↔ FAISS lifecycle
-├── hybrid_retriever.py    ← BM25 + FAISS hybrid search with fusion
-├── rag_pipeline.py        ← HyDE · Multi-query + RRF · Cross-encoder
-├── llm_provider.py        ← Unified LLM interface (Claude/OpenAI/Gemini/Ollama)
-├── agent.py               ← LangGraph ReAct conversational agent
-├── recommender.py         ← HTML card renderer and Google Books client
-├── reading_list.py        ← Per-session reading list with PDF/CSV/JSON export
-├── exporter.py            ← Analytics export utilities
-│
-├── data/
-│   └── books.csv          ← Local library dataset (~6 800 books)
-│
-├── artifacts/             ← Auto-generated on startup (gitignored)
-│   ├── book_index.faiss   ← FAISS IndexFlatIP
-│   └── books_metadata.pkl ← Metadata list parallel to FAISS rows
-│
-├── assets/
-│   ├── logo.png
-│   └── Diplotech_Logo_2.png
-│
-├── docs/
-│   ├── architecture.html   ← System architecture (v1 + v2, versioned)
-│   ├── decisions.html      ← Design decisions with alternatives
-│   └── business-impact.html← Business case and ROI analysis
-│
-├── tests/
-│   ├── test_config.py
-│   ├── test_manager.py
-│   ├── test_recommender.py
-│   ├── test_hybrid_retriever.py
-│   ├── test_rag_pipeline.py
-│   └── test_llm_provider.py
-│
-├── archive/               ← Deprecated code (do not import)
-├── .env.example           ← Copy to .env and fill in keys
-├── .gitignore
-└── requirements.txt
 ```
+apps/
+  api/
+    main.py            FastAPI app, CORS, rate limiting
+    deps.py            engine lifecycle
+    schemas.py         Pydantic contract
+    routers/           one module per resource
+    core/              retrieval engine (no HTTP awareness)
+      agents/          SearchWorker, CuratorWorker
+  web/                 Next.js frontend (in progress)
 
----
-
-## Quick Start
-
-### 1 — Clone
-
-```bash
-git clone <your-repo-url>
-cd Digitalized-Library-Management-System
+data/books.csv         catalogue (~6,800 books)
+artifacts/             FAISS index, metadata, graph cache (gitignored)
+tests/                 110 tests
+docs/                  architecture and assessment documents
 ```
-
-### 2 — Virtual environment
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-source .venv/bin/activate   # macOS / Linux
-```
-
-### 3 — Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4 — Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your keys (all optional except `GOOGLE_API_KEY` for external search):
-
-```env
-# Required for Google Books external search
-GOOGLE_API_KEY=your_key_here
-
-# AI providers — add whichever you use; leave the rest blank
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=AI...
-
-# Ollama — no key needed; runs locally (see below)
-OLLAMA_HOST=http://localhost:11434   # default
-
-# Server
-SERVER_HOST=0.0.0.0
-SERVER_PORT=7860
-GRADIO_SHARE=false
-```
-
-### 5 — Run
-
-```bash
-python app.py
-```
-
-Open **<http://localhost:7860>** in your browser.
-
----
-
-## Using Ollama (Free Local AI — No API Key)
-
-Ollama runs LLMs on your machine. With an NVIDIA GPU (RTX 3060+) you get fast, free inference with no token costs.
-
-### Install Ollama
-
-Download from [ollama.com](https://ollama.com) and install.
-
-### Pull a model
-
-```bash
-# Recommended — fast, instruction-tuned, only 2 GB
-ollama pull llama3.2
-
-# Alternatives already installed on this machine
-# ollama pull qwen2.5:3b     # 1.9 GB — excellent structured output
-# ollama pull qwen2.5:7b     # 4.7 GB — high quality
-# ollama pull deepseek-r1:8b # 5.2 GB — strong reasoning
-```
-
-### Connect in the UI
-
-1. Open the **AI Settings** panel in the app
-2. Select provider: `ollama`
-3. Select model: `llama3.2`
-4. Click **Connect**
-
-All RAG features (HyDE, multi-query, re-ranking explanations) will activate automatically.
-
----
-
-## Architecture Overview
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         USER LAYER                              │
-│       Browser  ──  HTTP :7860  ──  Gradio UI (app.py)          │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────────┐
-│                     APPLICATION LAYER                           │
-│                                                                 │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-│  │  Gradio UI  │  │  LangGraph   │  │    BookRecommender   │   │
-│  │  (app.py)   │  │  Agent       │  │    (recommender.py)  │   │
-│  └──────┬──────┘  └──────┬───────┘  └──────────┬───────────┘   │
-└─────────┼────────────────┼──────────────────────┼───────────────┘
-          │                │                      │
-┌─────────▼────────────────▼──────────────────────▼───────────────┐
-│                      RAG PIPELINE LAYER                         │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  RAGPipeline (rag_pipeline.py)                          │    │
-│  │                                                         │    │
-│  │  Stage 1 — Query Expansion                              │    │
-│  │    HyDE: LLM → hypothetical doc → embed as query        │    │
-│  │    Multi-query: LLM → 3 variants → merge via RRF        │    │
-│  │                                                         │    │
-│  │  Stage 2 — Hybrid Retrieval                             │    │
-│  │    BM25 (40%) + FAISS cosine (60%) → min-max fusion     │    │
-│  │                                                         │    │
-│  │  Stage 3 — Re-ranking                                   │    │
-│  │    CrossEncoder ms-marco-MiniLM-L-6-v2                  │    │
-│  └───────────────────────────────┬─────────────────────────┘    │
-└───────────────────────────────────┼──────────────────────────────┘
-                                   │
-┌──────────────────────────────────▼──────────────────────────────┐
-│                        DATA LAYER                               │
-│                                                                 │
-│   all-MiniLM-L6-v2 (384-dim)  ·  FAISS IndexFlatIP             │
-│   BM25Okapi (rank_bm25)       ·  books.csv / books_metadata.pkl│
-└──────────────────────────────────┬──────────────────────────────┘
-                                   │
-┌──────────────────────────────────▼──────────────────────────────┐
-│                      EXTERNAL SERVICES                          │
-│   Google Books API  ·  Anthropic  ·  OpenAI  ·  Gemini         │
-│   Ollama (localhost — no internet required)                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-For full detail, see **[docs/architecture.html](./docs/architecture.html)**.
-
----
-
-## RAG Pipeline Detail
-
-Each stage is independent and falls back gracefully if the LLM is off or a package is missing.
-
-### Stage 1 — Query Expansion
-
-#### HyDE (Hypothetical Document Embeddings)
-
-The LLM writes a 2-sentence description of the ideal book for the query. That text is embedded and used as the FAISS search vector instead of the raw query — it bridges the gap between short query language and rich document language.
-
-#### Multi-Query RAG
-
-The LLM produces 3 alternative phrasings of the query. Each is searched independently. Results from all queries are merged with **Reciprocal Rank Fusion**:
-
-```text
-score = Σ 1 / (rank + 60)   for each result list
-```
-
-Books appearing in multiple result sets get a boosted score; the constant `60` dampens rank differences at the top.
-
-### Stage 2 — Hybrid Retrieval
-
-```text
-hybrid_score = 0.40 × norm(BM25) + 0.60 × norm(FAISS cosine)
-```
-
-Both scores are min-max normalised per query before combining, so neither scale dominates. BM25 catches exact keyword matches; FAISS catches semantic similarity.
-
-### Stage 3 — Cross-Encoder Re-ranking
-
-`cross-encoder/ms-marco-MiniLM-L-6-v2` sees `(query, title + description)` pairs jointly, producing a relevance score far more accurate than bi-encoder cosine similarity. The model is lazy-loaded on first use; if the package is missing the pipeline returns Stage 2 results unchanged.
-
----
-
-## Configuration Reference
-
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `GOOGLE_API_KEY` | *(optional)* | Google Books external search |
-| `ANTHROPIC_API_KEY` | *(optional)* | Claude AI provider |
-| `OPENAI_API_KEY` | *(optional)* | OpenAI provider |
-| `GEMINI_API_KEY` | *(optional)* | Google Gemini provider |
-| `OLLAMA_HOST` | `http://localhost:11434` | Ollama server address |
-| `SERVER_HOST` | `0.0.0.0` | Gradio bind host |
-| `SERVER_PORT` | `7860` | Gradio bind port |
-| `GRADIO_SHARE` | `false` | `true` → public Gradio tunnel |
-
----
-
-## Running Tests
-
-```bash
-# Install test dependencies (already in requirements.txt)
-pip install pytest pytest-cov
-
-# Run all 81 tests
-pytest tests/ -v
-
-# With coverage report
-pytest tests/ --cov=. --cov-report=term-missing
-
-# Run a specific module
-pytest tests/test_rag_pipeline.py -v
-```
-
-### Test suite breakdown
-
-| Module | Tests | What is covered |
-| ------ | ----- | --------------- |
-| `test_config.py` | 8 | Settings defaults and env var loading |
-| `test_manager.py` | 18 | CSV CRUD, FAISS rebuild, edge cases |
-| `test_recommender.py` | 15 | HTML card rendering, Google Books client |
-| `test_hybrid_retriever.py` | 15 | BM25 + FAISS fusion, fallbacks |
-| `test_rag_pipeline.py` | 25 | HyDE, multi-query, RRF, re-ranking, degradation |
-
----
-
-## Server Deployment
-
-```bash
-export GOOGLE_API_KEY=<your_key>
-export SERVER_HOST=0.0.0.0
-export SERVER_PORT=7860
-
-# Background process
-nohup python app.py > app.log 2>&1 &
-```
-
-### Nginx reverse proxy
-
-```nginx
-server {
-    listen 80;
-    server_name library.yourdomain.com;
-    location / {
-        proxy_pass         http://127.0.0.1:7860;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade    $http_upgrade;
-        proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host       $host;
-    }
-}
-```
-
-### systemd service
-
-```ini
-[Unit]
-Description=Iqra Digital Library v2
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/Digitalized-Library-Management-System
-ExecStart=/opt/Digitalized-Library-Management-System/.venv/bin/python app.py
-EnvironmentFile=/opt/Digitalized-Library-Management-System/.env
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl enable --now iqra-library
-```
-
----
-
-## Dependencies
-
-| Package | Purpose |
-| ------- | ------- |
-| `gradio` | Web UI |
-| `pandas` | CSV management |
-| `numpy` | Embedding math |
-| `faiss-cpu` | Nearest-neighbour vector search |
-| `sentence-transformers` | `all-MiniLM-L6-v2` embedding + cross-encoder re-ranking |
-| `rank_bm25` | BM25Okapi keyword retrieval |
-| `langchain-core` | LangGraph agent framework |
-| `langgraph` | ReAct agent with conversation memory |
-| `anthropic` | Claude API client |
-| `openai` | OpenAI API client |
-| `google-generativeai` | Gemini API client |
-| `requests` | Google Books API + Ollama HTTP client |
-| `python-dotenv` | `.env` loading |
-| `reportlab` | PDF export for reading list / analytics |
 
 ---
 
 ## License
 
 MIT © 2025 [DiploTech Solutions](https://diplotech-solutions.com)
-
----
-
-Built with DiploTech Solutions · Gradio · FAISS · BM25 · SentenceTransformers · LangGraph · Claude / OpenAI / Gemini / Ollama

@@ -71,8 +71,8 @@ def recommender(tmp_path: Path):
         google_api_key = "dummy-key",
     )
 
-    with patch("recommender.settings", fake_settings):
-        from recommender import BookRecommender
+    with patch("apps.api.core.recommender.settings", fake_settings):
+        from apps.api.core.recommender import BookRecommender
         rec = BookRecommender()
         yield rec
 
@@ -108,7 +108,7 @@ class TestBookRecommender:
                 }}
             ]
         }
-        with patch("recommender.requests.get", return_value=mock_response):
+        with patch("apps.api.core.recommender.requests.get", return_value=mock_response):
             local, ext = recommender.recommend(
                 "fiction", "Any", 0, 3, 0.0, "External Only", "Similarity"
             )
@@ -139,17 +139,22 @@ class TestBookRecommender:
             sims = [b["similarity"] for b in local]
             assert sims == sorted(sims, reverse=True)
 
-    def test_format_books_returns_html(self, recommender) -> None:
+    def test_recommend_returns_plain_dicts(self, recommender) -> None:
+        """v3 contract: the engine returns data, never rendered markup."""
         local, ext = recommender.recommend(
             "test", "Any", 2, 0, 0.0, "Local Only", "Rating"
         )
-        html = recommender.format_books(local, ext)
-        assert "<div" in html
-        assert "results-root" in html
+        for book in local + ext:
+            assert isinstance(book, dict)
+            for value in book.values():
+                assert "<div" not in str(value), "engine must not emit HTML"
 
-    def test_format_books_empty_shows_no_results(self, recommender) -> None:
-        html = recommender.format_books([], [])
-        assert "No results found" in html
+    def test_html_renderers_are_gone(self, recommender) -> None:
+        """These moved to the frontend in v3 and must not come back."""
+        for removed in ("format_books", "_render_card", "_render_section"):
+            assert not hasattr(recommender, removed), (
+                f"{removed} should have been removed in the v3 data-layer split"
+            )
 
     def test_normalise_handles_missing_fields(self, recommender) -> None:
         raw    = {}
@@ -158,7 +163,14 @@ class TestBookRecommender:
         assert result["authors"]        == "Unknown Author"
         assert result["average_rating"] == 0.0
 
-    def test_card_renders_title(self, recommender) -> None:
-        book = recommender._normalise(_fake_book("My Title"), "Test")
-        card = recommender._render_card(book)
-        assert "My Title" in card
+    def test_normalise_assigns_stable_id(self, recommender) -> None:
+        first  = recommender._normalise(_fake_book("My Title"), "Test")
+        second = recommender._normalise(_fake_book("My Title"), "Test")
+        assert first["id"]
+        assert len(first["id"]) == 16
+        assert first["id"] == second["id"], "ids must be deterministic"
+
+    def test_different_books_get_different_ids(self, recommender) -> None:
+        a = recommender._normalise(_fake_book("Title A"), "Test")
+        b = recommender._normalise(_fake_book("Title B"), "Test")
+        assert a["id"] != b["id"]

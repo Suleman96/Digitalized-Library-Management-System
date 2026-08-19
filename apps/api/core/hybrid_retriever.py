@@ -38,7 +38,7 @@ from typing import Any, Callable
 
 import numpy as np
 
-from config import settings
+from .config import settings
 
 logger = logging.getLogger(__name__)
 

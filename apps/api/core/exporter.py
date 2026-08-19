@@ -15,7 +15,7 @@ from typing import Any
 
 from fpdf import FPDF
 
-from config import settings
+from .config import settings
 
 logger = logging.getLogger(__name__)
 

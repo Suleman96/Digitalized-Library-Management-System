@@ -26,7 +26,7 @@ import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer
 
-from config import settings
+from .config import settings
 
 # ---------------------------------------------------------------------------
 # Module logger

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from config import settings
+from apps.api.core.config import settings
 
 
 class TestSettings:
@@ -69,25 +69,25 @@ class TestFlatAliases:
     """The flat module-level aliases must exist and be the right type."""
 
     def test_csv_path_alias(self) -> None:
-        from config import CSV_PATH
+        from apps.api.core.config import CSV_PATH
         assert isinstance(CSV_PATH, str)
 
     def test_index_path_alias(self) -> None:
-        from config import INDEX_PATH
+        from apps.api.core.config import INDEX_PATH
         assert isinstance(INDEX_PATH, str)
 
     def test_meta_path_alias(self) -> None:
-        from config import META_PATH
+        from apps.api.core.config import META_PATH
         assert isinstance(META_PATH, str)
 
     def test_languages_alias(self) -> None:
-        from config import LANGUAGES
+        from apps.api.core.config import LANGUAGES
         assert isinstance(LANGUAGES, dict)
 
     def test_search_modes_alias(self) -> None:
-        from config import SEARCH_MODES
+        from apps.api.core.config import SEARCH_MODES
         assert isinstance(SEARCH_MODES, list)
 
     def test_sort_by_options_alias(self) -> None:
-        from config import SORT_BY_OPTIONS
+        from apps.api.core.config import SORT_BY_OPTIONS
         assert isinstance(SORT_BY_OPTIONS, list)

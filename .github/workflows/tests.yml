@@ -2,14 +2,15 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "feature/**" ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  test:
+  api:
+    name: Python API
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout code
@@ -22,15 +23,63 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install --upgrade pip && pip install -r requirements.txt pytest pytest-cov
-
-      - name: Create dummy env
         run: |
-          echo "GOOGLE_API_KEY=dummy-key-for-tests" >> $GITHUB_ENV
-          echo "ANTHROPIC_API_KEY=dummy-key-for-tests" >> $GITHUB_ENV
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest tests/ -v --cov=. --cov-report=term-missing --ignore=tests/test_app_integration.py
+        run: pytest tests/ -v --cov=apps --cov-report=term-missing
         env:
           GOOGLE_API_KEY: dummy-key-for-tests
           ANTHROPIC_API_KEY: dummy-key-for-tests
+
+      - name: Verify the OpenAPI schema still generates
+        # The frontend's TypeScript types are generated from this schema, so a
+        # break here silently un-types the whole web app.
+        run: |
+          python -c "
+          from apps.api.main import app
+          schema = app.openapi()
+          required = {'Book', 'SearchRequest', 'SearchResponse', 'PipelineTrace'}
+          missing = required - set(schema['components']['schemas'])
+          assert not missing, f'OpenAPI schema is missing: {missing}'
+          print(f\"OpenAPI OK - {len(schema['paths'])} paths, {len(schema['components']['schemas'])} models\")
+          "
+        env:
+          GOOGLE_API_KEY: dummy-key-for-tests
+
+  web:
+    name: TypeScript frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Enabled once apps/web is scaffolded in P2.
+    if: ${{ hashFiles('apps/web/package.json') != '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: apps/web
+        run: pnpm tsc --noEmit
+
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm lint
+
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build

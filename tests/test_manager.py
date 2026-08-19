@@ -61,8 +61,8 @@ def manager(tmp_path: Path):
         meta_path    = artifact_dir / "books_metadata.pkl",
     )
 
-    with patch("manager.settings", fake_settings):
-        from manager import DynamicBookManager
+    with patch("apps.api.core.manager.settings", fake_settings):
+        from apps.api.core.manager import DynamicBookManager
         mgr = DynamicBookManager()
         yield mgr
 

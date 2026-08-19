@@ -5,8 +5,9 @@
 # -----------
 # Unified multi-provider LLM abstraction supporting:
 #   • Claude  (Anthropic)
-#   • OpenAI  (GPT-4o, GPT-4o-mini, …)
+#   • OpenAI  (GPT-4o, GPT-4.1, …)
 #   • Gemini  (Google)
+#   • Groq    (fast inference, free tier — llama3, mixtral, gemma)
 #   • Ollama  (local, free — no API key needed)
 #
 # Usage
@@ -34,26 +35,42 @@ PROVIDER_MODELS: dict[str, list[str]] = {
         "claude-sonnet-4-6",
         "claude-haiku-4-5-20251001",
         "claude-opus-4-7",
+        "claude-opus-4-8",
     ],
     "openai": [
         "gpt-4o",
         "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
         "gpt-3.5-turbo",
     ],
     "gemini": [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
         "gemini-1.5-pro",
         "gemini-1.5-flash",
-        "gemini-pro",
+    ],
+    # Groq — fast inference, free tier, great for demos.
+    # API key at: https://console.groq.com/
+    "groq": [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
     ],
     # Only models that support tool/function calling (required for the ReAct agent).
     # gemma:2b, gemma:7b, phi3 do NOT support tool calling and are excluded.
     "ollama": [
         "llama3.2",       # 2 GB  — recommended, full tool calling
+        "llama3.3",       # 42 GB — high quality, tool calling
         "qwen2.5:3b",     # 1.9 GB — excellent structured output + tool calling
         "qwen2.5:7b",     # 4.7 GB — high quality, tool calling
+        "qwen3:8b",       # 5.2 GB — latest Qwen3, strong reasoning
+        "phi4",           # 9.1 GB — Microsoft Phi-4, strong reasoning
         "llama3.1",       # 4.7 GB — tool calling supported
         "mistral",        # 4.7 GB — tool calling supported
         "deepseek-r1:8b", # 5.2 GB — strong reasoning, tool calling
+        "gemma3:4b",      # 3.3 GB — Google Gemma 3, tool calling
     ],
 }
 
@@ -69,11 +86,18 @@ class LLMProvider:
     """
 
     def __init__(self) -> None:
-        self._provider: str    = ""
-        self._model:    str    = ""
-        self._client:   Any    = None
-        self.is_enabled: bool  = False
-        self.status:    str    = "Not connected"
+        self._provider:    str  = ""
+        self._model:       str  = ""
+        self._client:      Any  = None
+        self._ollama_host: str  = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+        self.is_enabled:   bool = False
+        self.status:       str  = "Not connected"
+
+    def set_ollama_host(self, host: str) -> None:
+        """Override the Ollama server URL.  Call before configure('ollama', ...)."""
+        host = host.strip().rstrip("/")
+        if host:
+            self._ollama_host = host
 
     # ── Public: model catalogue ───────────────────────────────────────────
     @property
@@ -102,6 +126,8 @@ class LLMProvider:
                 status = self._connect_openai(model)
             elif provider == "gemini":
                 status = self._connect_gemini(model)
+            elif provider == "groq":
+                status = self._connect_groq(model)
             elif provider == "ollama":
                 status = self._connect_ollama(model)
             else:
@@ -154,9 +180,27 @@ class LLMProvider:
         self._client = genai.GenerativeModel(model)
         return f"✅ Gemini ({model}) connected."
 
+    def _connect_groq(self, model: str) -> str:
+        key = os.getenv("GROQ_API_KEY", "").strip()
+        if not key:
+            return "❌ GROQ_API_KEY not set. Add it to .env  (free key at console.groq.com)"
+        try:
+            from groq import Groq
+            client = Groq(api_key=key)
+            client.chat.completions.create(
+                model=model, max_tokens=5,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            self._client = client
+            return f"✅ Groq ({model}) connected."
+        except ImportError:
+            return "❌ groq package not installed. Run: pip install groq"
+        except Exception as exc:
+            return f"❌ Groq connection failed: {exc}"
+
     def _connect_ollama(self, model: str) -> str:
         import requests as _requests
-        host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        host = self._ollama_host
         try:
             r = _requests.get(f"{host}/api/tags", timeout=10)
             r.raise_for_status()
@@ -165,6 +209,10 @@ class LLMProvider:
                 f"❌ Ollama server not reachable at {host}. "
                 "Make sure Ollama is running (open Ollama app or run 'ollama serve')."
             )
+        except _requests.Timeout:
+            return f"❌ Ollama server at {host} timed out. Check the host URL."
+        except Exception as exc:
+            return f"❌ Could not reach Ollama at {host}: {exc}"
 
         # Verify the requested model is actually pulled
         pulled_names = [m.get("name", "") for m in r.json().get("models", [])]
@@ -174,11 +222,11 @@ class LLMProvider:
             for p in pulled_names
         )
         if not is_available:
-            available_str = ", ".join(pulled_names) if pulled_names else "(none)"
+            available_str = ", ".join(pulled_names) if pulled_names else "(none pulled yet)"
             return (
-                f"❌ Model '{model}' is not pulled yet.\n"
-                f"   Run in a terminal:  ollama pull {model}\n"
-                f"   Available models:   {available_str}"
+                f"❌ Model '{model}' not found at {host}.\n"
+                f"   Pull it with:  ollama pull {model}\n"
+                f"   Available:     {available_str}"
             )
 
         self._client = host
@@ -208,6 +256,13 @@ class LLMProvider:
                 resp = self._client.generate_content(prompt)
                 return resp.text.strip()
 
+            if self._provider == "groq":
+                resp = self._client.chat.completions.create(
+                    model=self._model, max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return resp.choices[0].message.content.strip()
+
             if self._provider == "ollama":
                 import requests as _requests
                 r = _requests.post(
@@ -218,7 +273,7 @@ class LLMProvider:
                         "stream": False,
                         "options": {"num_predict": max_tokens},
                     },
-                    timeout=60,
+                    timeout=90,
                 )
                 return r.json().get("response", "").strip()
 
@@ -323,12 +378,23 @@ class LLMProvider:
                     model=self._model,
                     google_api_key=os.getenv("GEMINI_API_KEY", ""),
                 )
+            if self._provider == "groq":
+                from langchain_groq import ChatGroq
+                return ChatGroq(
+                    model=self._model,
+                    api_key=os.getenv("GROQ_API_KEY", ""),
+                )
             if self._provider == "ollama":
                 from langchain_ollama import ChatOllama
                 return ChatOllama(
                     model=self._model,
                     base_url=str(self._client),
                 )
+        except ImportError as exc:
+            logger.warning(
+                "get_langchain_llm: missing LangChain package for %s — %s. "
+                "Install langchain-%s.", self._provider, exc, self._provider,
+            )
         except Exception as exc:
             logger.warning("get_langchain_llm error (%s): %s", self._provider, exc)
         return None

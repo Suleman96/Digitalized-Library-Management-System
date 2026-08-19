@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from config import settings
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,8 @@ class LibraryAgent:
         reading_list_mgr: Any,
         llm_provider:     Any,
     ) -> None:
-        from agents.search_agent  import SearchWorker
-        from agents.curator_agent import CuratorWorker
+        from .agents.search_agent  import SearchWorker
+        from .agents.curator_agent import CuratorWorker
 
         self._search_worker  = SearchWorker(hybrid_retriever, book_recommender, llm_provider)
         self._curator_worker = CuratorWorker(reading_list_mgr, llm_provider)
@@ -188,6 +188,79 @@ class LibraryAgent:
             return f"Agent error: {exc}"
 
         return "No response generated. Please try again."
+
+    # ── Streaming chat ────────────────────────────────────────────────────
+    async def astream_chat(self, message: str, thread_id: str):
+        """
+        Stream the agent's response as it is produced.
+
+        Yields (event_name, payload) tuples that the SSE router forwards to the
+        browser:
+
+            ("token",       {"text": "..."})     incremental assistant text
+            ("tool_call",   {"name": "..."})     the orchestrator picked a worker
+            ("tool_result", {"name", "preview"}) that worker came back
+            ("done",        {"text": "..."})     full final reply
+            ("error",       {"message": "..."})
+
+        The tool events are the point: they make the ReAct loop's delegation
+        visible instead of hiding it behind a spinner.
+        """
+        if self._agent is None:
+            yield ("error", {
+                "message": "The AI agent is not active. Connect a provider first."
+            })
+            return
+
+        config = {"configurable": {"thread_id": thread_id}}
+        collected: list[str] = []
+
+        try:
+            async for event in self._agent.astream_events(
+                {"messages": [{"role": "user", "content": message}]},
+                config=config,
+                version="v2",
+            ):
+                kind = event.get("event", "")
+
+                if kind == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    text = getattr(chunk, "content", "") if chunk is not None else ""
+                    # Some providers emit content as a list of blocks.
+                    if isinstance(text, list):
+                        text = "".join(
+                            part.get("text", "")
+                            for part in text
+                            if isinstance(part, dict)
+                        )
+                    if text:
+                        collected.append(text)
+                        yield ("token", {"text": text})
+
+                elif kind == "on_tool_start":
+                    yield ("tool_call", {"name": event.get("name", "worker")})
+
+                elif kind == "on_tool_end":
+                    output = event.get("data", {}).get("output")
+                    preview = str(getattr(output, "content", output) or "")[:180]
+                    yield ("tool_result", {
+                        "name": event.get("name", "worker"),
+                        "preview": preview,
+                    })
+
+            final = "".join(collected).strip()
+            if not final:
+                # Providers without token streaming still return a final state.
+                final = self.chat(message, thread_id)
+            yield ("done", {"text": final})
+
+        except Exception as exc:
+            logger.error("LibraryAgent.astream_chat error: %s", exc)
+            # Fall back to the blocking path rather than failing the request.
+            try:
+                yield ("done", {"text": self.chat(message, thread_id)})
+            except Exception:
+                yield ("error", {"message": f"Agent error: {exc}"})
 
     @property
     def is_ready(self) -> bool:

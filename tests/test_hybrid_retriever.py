@@ -73,10 +73,12 @@ def built_retriever(tmp_path: Path):
     fake_settings = SimpleNamespace(
         index_path=index_path,
         meta_path=meta_path,
+        # The knowledge-graph cache writes here; without it build() raises.
+        artifact_dir=tmp_path,
     )
 
-    with patch("hybrid_retriever.settings", fake_settings):
-        from hybrid_retriever import HybridRetriever
+    with patch("apps.api.core.hybrid_retriever.settings", fake_settings):
+        from apps.api.core.hybrid_retriever import HybridRetriever
         hr = HybridRetriever()
         hr.build(embed_fn=_dummy_embed)
         yield hr
@@ -88,11 +90,11 @@ def built_retriever(tmp_path: Path):
 class TestHybridRetrieverDegradation:
     def test_build_missing_files_does_not_raise(self):
         """build() must silently skip when index/metadata are absent."""
-        with patch("hybrid_retriever.settings") as mock_settings:
+        with patch("apps.api.core.hybrid_retriever.settings") as mock_settings:
             mock_settings.index_path = Path("/nonexistent/index.faiss")
             mock_settings.meta_path  = Path("/nonexistent/meta.pkl")
 
-            from hybrid_retriever import HybridRetriever
+            from apps.api.core.hybrid_retriever import HybridRetriever
             hr = HybridRetriever()
             hr.build()  # should not raise
 
@@ -100,17 +102,17 @@ class TestHybridRetrieverDegradation:
 
     def test_search_before_build_returns_empty(self):
         """search() must return [] if build() was never called."""
-        from hybrid_retriever import HybridRetriever
+        from apps.api.core.hybrid_retriever import HybridRetriever
         hr = HybridRetriever()
         assert hr.search("fantasy novels") == []
 
     def test_reload_does_not_raise_on_missing_files(self):
         """reload() wraps build() — must tolerate missing files."""
-        with patch("hybrid_retriever.settings") as mock_settings:
+        with patch("apps.api.core.hybrid_retriever.settings") as mock_settings:
             mock_settings.index_path = Path("/nonexistent/index.faiss")
             mock_settings.meta_path  = Path("/nonexistent/meta.pkl")
 
-            from hybrid_retriever import HybridRetriever
+            from apps.api.core.hybrid_retriever import HybridRetriever
             hr = HybridRetriever()
             hr.reload()  # should not raise
 
@@ -120,7 +122,7 @@ class TestHybridRetrieverDegradation:
 # ---------------------------------------------------------------------------
 class TestBuildAndReady:
     def test_is_ready_false_before_build(self):
-        from hybrid_retriever import HybridRetriever
+        from apps.api.core.hybrid_retriever import HybridRetriever
         hr = HybridRetriever()
         assert hr.is_ready is False
 
@@ -128,7 +130,7 @@ class TestBuildAndReady:
         assert built_retriever.is_ready is True
 
     def test_is_ready_false_after_reload_with_missing_files(self, built_retriever):
-        with patch("hybrid_retriever.settings") as mock_settings:
+        with patch("apps.api.core.hybrid_retriever.settings") as mock_settings:
             mock_settings.index_path = Path("/no/such/path.faiss")
             mock_settings.meta_path  = Path("/no/such/path.pkl")
             built_retriever.reload()
@@ -145,11 +147,11 @@ class TestLoadMetadata:
         with open(pkl_path, "wb") as fh:
             pickle.dump(meta, fh)
 
-        with patch("hybrid_retriever.settings") as mock_settings:
+        with patch("apps.api.core.hybrid_retriever.settings") as mock_settings:
             mock_settings.meta_path  = pkl_path
             mock_settings.index_path = tmp_path / "nonexistent.faiss"
 
-            from hybrid_retriever import HybridRetriever
+            from apps.api.core.hybrid_retriever import HybridRetriever
             hr     = HybridRetriever()
             loaded = hr._load_metadata()
 
@@ -157,11 +159,11 @@ class TestLoadMetadata:
         assert loaded[0]["title"] == "Book 0"
 
     def test_load_metadata_returns_empty_when_file_missing(self, tmp_path: Path):
-        with patch("hybrid_retriever.settings") as mock_settings:
+        with patch("apps.api.core.hybrid_retriever.settings") as mock_settings:
             mock_settings.meta_path  = tmp_path / "missing.pkl"
             mock_settings.index_path = tmp_path / "missing.faiss"
 
-            from hybrid_retriever import HybridRetriever
+            from apps.api.core.hybrid_retriever import HybridRetriever
             hr = HybridRetriever()
             assert hr._load_metadata() == []
 
@@ -215,19 +217,19 @@ class TestSearch:
 # ---------------------------------------------------------------------------
 class TestMinMaxNorm:
     def test_all_zeros_returns_zeros(self):
-        from hybrid_retriever import HybridRetriever
+        from apps.api.core.hybrid_retriever import HybridRetriever
         arr = np.zeros(5, dtype=np.float32)
         out = HybridRetriever._minmax_norm(arr)
         assert np.allclose(out, 0.0)
 
     def test_uniform_scores_normalise_to_zero(self):
-        from hybrid_retriever import HybridRetriever
+        from apps.api.core.hybrid_retriever import HybridRetriever
         arr = np.ones(5, dtype=np.float32) * 3.7
         out = HybridRetriever._minmax_norm(arr)
         assert np.allclose(out, 0.0)
 
     def test_known_range(self):
-        from hybrid_retriever import HybridRetriever
+        from apps.api.core.hybrid_retriever import HybridRetriever
         arr = np.array([0.0, 5.0, 10.0], dtype=np.float32)
         out = HybridRetriever._minmax_norm(arr)
         assert np.allclose(out, [0.0, 0.5, 1.0])
