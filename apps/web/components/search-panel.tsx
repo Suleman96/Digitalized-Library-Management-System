@@ -14,7 +14,7 @@ const CATEGORIES = [
 ];
 
 const SCOPES: { value: SearchScope; label: string; hint: string }[] = [
-  { value: "both", label: "Everything", hint: "This library plus external catalogues" },
+  { value: "both", label: "All", hint: "This library plus external catalogues" },
   { value: "local", label: "Library", hint: "Only the 6,800 books indexed here" },
   { value: "external", label: "External", hint: "Only Google Books and OpenLibrary" },
 ];
@@ -92,7 +92,7 @@ export function SearchPanel({
               type="button"
               onClick={() => set("scope", s.value)}
               title={s.hint}
-              className={`truncate rounded-md px-2 py-1.5 text-[12px] font-medium whitespace-nowrap transition ${
+              className={`rounded-md px-1.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition ${
                 value.scope === s.value
                   ? "bg-surface text-ink shadow-card"
                   : "text-ink-mute hover:text-ink"

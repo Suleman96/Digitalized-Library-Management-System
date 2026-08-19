@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertCircle, Search } from "lucide-react";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { BookCard, BookCardSkeleton } from "@/components/book-card";
 import { PipelineTrace } from "@/components/pipeline-trace";
@@ -32,8 +33,15 @@ const DEFAULTS: SearchRequest = {
   useRerank: false,
 };
 
-export default function DiscoverPage() {
-  const [form, setForm] = useState<SearchRequest>(DEFAULTS);
+function DiscoverInner() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const urlQuery = params.get("q") ?? "";
+
+  const [form, setForm] = useState<SearchRequest>({
+    ...DEFAULTS,
+    query: urlQuery,
+  });
   const [results, setResults] = useState<SearchResponse | null>(null);
 
   const { data: llm } = useQuery({
@@ -47,21 +55,38 @@ export default function DiscoverPage() {
     onSuccess: setResults,
   });
 
-  function run(query?: string) {
-    const next = query ? { ...form, query } : form;
-    if (query) setForm(next);
-    if (!next.query.trim()) return;
-    search.mutate(next);
-  }
+  const run = useCallback(
+    (override?: string) => {
+      const next = override ? { ...form, query: override } : form;
+      if (override) setForm(next);
+      if (!next.query.trim()) return;
+
+      // Keep the query in the URL so a result page can be shared or reloaded.
+      router.replace(`/?q=${encodeURIComponent(next.query)}`, { scroll: false });
+      search.mutate(next);
+    },
+    [form, router, search],
+  );
+
+  // Run the URL's query once on first load, so a shared link resolves to
+  // results rather than an empty box. Firing a mutation is an external effect,
+  // not a setState, so an effect is the correct place for it.
+  const bootstrapped = useRef(false);
+  const startSearch = search.mutate;
+  useEffect(() => {
+    if (bootstrapped.current || !urlQuery) return;
+    bootstrapped.current = true;
+    startSearch({ ...DEFAULTS, query: urlQuery });
+  }, [urlQuery, startSearch]);
 
   const error = search.error as ApiError | null;
   const total = results ? results.local.length + results.external.length : 0;
+  const idle = !results && !search.isPending;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6">
-      {/* ---------- Hero ---------- */}
-      {!results && !search.isPending && (
-        <section className="mx-auto mb-10 max-w-2xl text-center animate-rise">
+      {idle && (
+        <section className="animate-rise mx-auto mb-10 max-w-2xl text-center">
           <h1 className="font-display text-4xl leading-[1.1] font-semibold tracking-tight text-ink sm:text-5xl">
             Find books by what you mean
           </h1>
@@ -73,7 +98,6 @@ export default function DiscoverPage() {
         </section>
       )}
 
-      {/* ---------- Search bar ---------- */}
       <div className="mx-auto mb-8 max-w-3xl">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -98,7 +122,7 @@ export default function DiscoverPage() {
           </button>
         </div>
 
-        {!results && (
+        {idle && (
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {EXAMPLES.map((ex) => (
               <button
@@ -115,7 +139,6 @@ export default function DiscoverPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* ---------- Filters ---------- */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <SearchPanel
             value={form}
@@ -126,7 +149,6 @@ export default function DiscoverPage() {
           />
         </aside>
 
-        {/* ---------- Results ---------- */}
         <section className="min-w-0">
           {error && (
             <div className="mb-4 flex gap-3 rounded-xl border border-danger/30 bg-danger-wash p-4">
@@ -145,7 +167,7 @@ export default function DiscoverPage() {
           )}
 
           {search.isPending && (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 6 }).map((_, i) => (
                 <BookCardSkeleton key={i} />
               ))}
@@ -153,7 +175,7 @@ export default function DiscoverPage() {
           )}
 
           {results && !search.isPending && (
-            <div className="space-y-6 animate-rise">
+            <div className="animate-rise space-y-6">
               <PipelineTrace trace={results.trace} />
 
               {results.expandedQuery && (
@@ -196,7 +218,7 @@ export default function DiscoverPage() {
             </div>
           )}
 
-          {!results && !search.isPending && !error && (
+          {idle && !error && (
             <div className="rounded-xl border border-dashed border-hairline p-12 text-center">
               <p className="font-display text-lg text-ink">
                 Your results will appear here
@@ -239,5 +261,14 @@ function ResultGroup({
         ))}
       </div>
     </section>
+  );
+}
+
+export default function DiscoverPage() {
+  // useSearchParams needs a Suspense boundary for static prerendering.
+  return (
+    <Suspense fallback={null}>
+      <DiscoverInner />
+    </Suspense>
   );
 }
